@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { beforeAll, describe, expect, it } from "vitest";
-import grokbotExtension from "./extension.js";
+import grokbotExtension, { grokOnlyCommand } from "./extension.js";
 import { type AgentEvent, agentArgs, createGrokMcpServer, formatAgentRun, summarizeAgentEvents } from "./mcp.js";
 import { browserCommand } from "./login.js";
 import { configureEnv, DEFAULT_MODEL, seedDefaultModel } from "./setup.js";
@@ -257,5 +257,15 @@ describe("browserCommand", () => {
     expect(browserCommand(url, "darwin")).toEqual(["open", [url]]);
     expect(browserCommand(url, "linux")).toEqual(["xdg-open", [url]]);
     expect(browserCommand(url, "win32")).toEqual(["rundll32", ["url.dll,FileProtocolHandler", url]]);
+  });
+});
+
+describe("grokOnlyCommand", () => {
+  it("sends /login straight to xAI and leaves everything else alone", () => {
+    expect(grokOnlyCommand("/login")).toBe("/login xai");
+    expect(grokOnlyCommand(" /login ")).toBe("/login xai");
+    expect(grokOnlyCommand("/login anthropic")).toBe("/login anthropic");
+    expect(grokOnlyCommand("/model")).toBe("/model");
+    expect(grokOnlyCommand("explain /login")).toBe("explain /login");
   });
 });

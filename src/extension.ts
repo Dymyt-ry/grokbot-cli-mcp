@@ -1,6 +1,7 @@
 // Built-in grokbot extension for pi: Grok-native tools plus grokbot branding.
 import { Type } from "@earendil-works/pi-ai";
 import {
+  CustomEditor,
   defineTool,
   type ExtensionAPI,
   type ExtensionContext,
@@ -127,6 +128,27 @@ const generateVideo = defineTool({
   },
 });
 
+/** grokbot only talks to Grok, so /login skips pi's list of every provider and goes straight to xAI. */
+export function grokOnlyCommand(text: string): string {
+  return text.trim() === "/login" ? "/login xai" : text;
+}
+
+/** pi's editor, with submitted text passed through grokOnlyCommand (built-in slash commands run before extensions). */
+class GrokEditor extends CustomEditor {
+  constructor(...args: ConstructorParameters<typeof CustomEditor>) {
+    super(...args);
+    let wrapped: ((text: string) => unknown) | undefined;
+    // pi assigns onSubmit after constructing the editor; wrap whatever it assigns.
+    Object.defineProperty(this, "onSubmit", {
+      configurable: true,
+      get: () => wrapped,
+      set: (handler?: (text: string) => unknown) => {
+        wrapped = handler && ((text: string) => handler(grokOnlyCommand(text)));
+      },
+    });
+  }
+}
+
 const LOGO = ["▄▀▀ █▀▄ ▄▀▄ █▄▀ ██▄ ▄▀▄ ▀█▀", "▀▄█ █▀▄ ▀▄▀ █ █ █▄█ ▀▄▀  █ "];
 
 export default function grokbot(pi: ExtensionAPI): void {
@@ -135,6 +157,7 @@ export default function grokbot(pi: ExtensionAPI): void {
   pi.on("session_start", async (_event, ctx) => {
     if (ctx.mode !== "tui") return;
     ctx.ui.setTitle("grokbot");
+    ctx.ui.setEditorComponent((tui, theme, keybindings) => new GrokEditor(tui, theme, keybindings));
     ctx.ui.setHeader((_tui, theme) => ({
       render: () => [
         "",

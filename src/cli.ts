@@ -31,5 +31,5 @@ if (args[0] === "mcp" && (args.length === 1 || args[1] === "serve")) {
   process.title = "grokbot";
   const { main } = await import("@earendil-works/pi-coding-agent");
   const { default: grokExtension } = await import("./extension.js");
-  await main(args, { extensionFactories: [grokExtension] });
+  await main(args, { extensionFactories: [{ name: "grokbot", factory: grokExtension, hidden: true }] });
 }
