@@ -72,6 +72,7 @@ export function createGrokMcpServer(): McpServer {
   server.registerTool(
     "grok_ask",
     {
+      annotations: { readOnlyHint: true, openWorldHint: true },
       title: "Ask Grok",
       description:
         "One-shot prompt to xAI Grok. Good for a second opinion, brainstorming, or reasoning with a different model. Pass image paths/URLs in `images` for vision. Grok sees only what you put in the prompt.",
@@ -108,6 +109,7 @@ export function createGrokMcpServer(): McpServer {
   server.registerTool(
     "grok_search_web",
     {
+      annotations: { readOnlyHint: true, openWorldHint: true },
       title: "Grok web search",
       description: "Live web search via Grok. Synthesized answer with source URLs. Current docs, news, prices, releases.",
       inputSchema: {
@@ -132,6 +134,7 @@ export function createGrokMcpServer(): McpServer {
   server.registerTool(
     "grok_search_x",
     {
+      annotations: { readOnlyHint: true, openWorldHint: true },
       title: "Grok X search",
       description:
         "Real-time search of X (Twitter) via Grok: what people say, sentiment, announcements. Synthesized answer with post URLs.",
@@ -159,6 +162,7 @@ export function createGrokMcpServer(): McpServer {
   server.registerTool(
     "grok_generate_image",
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       title: "Grok image generation",
       description: "Generate an image from text, or edit one (pass `source`). Saves files locally and returns paths.",
       inputSchema: {
@@ -179,6 +183,7 @@ export function createGrokMcpServer(): McpServer {
   server.registerTool(
     "grok_generate_video",
     {
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
       title: "Grok video generation",
       description: "Generate a short video from text, or animate an image (`source`). Slow. Saves locally, returns path.",
       inputSchema: {
@@ -199,17 +204,22 @@ export function createGrokMcpServer(): McpServer {
   server.registerTool(
     "grok_agent",
     {
+      annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
       title: "Run the grokbot agent",
       description:
-        "Delegate a whole task to the autonomous grokbot agent (Grok) in a directory. It can read/edit files, run commands, search web and X, generate media, and use the MCP servers configured for grokbot (e.g. email). Returns its final answer, tool trail, cost and a session_id to continue later. Can take minutes.",
+        "Delegate a whole task to the autonomous grokbot agent (Grok) in a directory. It can read/edit files, run commands, search web and X, generate media, and use the MCP servers configured for grokbot (e.g. email). Returns its final answer, tool trail, cost and a session_id to continue later. Can take minutes. Set read_only for research/review tasks: no shell, no file writes, no MCP servers.",
       inputSchema: {
         prompt: z.string().min(1).describe("The task, with all context Grok needs"),
         directory: dirArg,
         session: z.string().optional().describe("session_id from an earlier grok_agent call, to continue it"),
         model: z.string().optional().describe(`Grok model id. Default ${DEFAULT_MODEL}`),
+        read_only: z
+          .boolean()
+          .optional()
+          .describe("Only read/search tools: no bash, no edits, no MCP servers. Use for research and reviews."),
       },
     },
-    async ({ prompt, directory: dir, session, model }, extra) => {
+    async ({ prompt, directory: dir, session, model, read_only }, extra) => {
       try {
         const token = extra._meta?.progressToken;
         let toolCount = 0;
@@ -218,6 +228,7 @@ export function createGrokMcpServer(): McpServer {
           cwd: directory(dir),
           session,
           model,
+          readOnly: read_only === true,
           signal: extra.signal,
           onEvent: (event) => {
             if (token === undefined || event.type !== "tool_execution_start") return;
@@ -239,7 +250,7 @@ export function createGrokMcpServer(): McpServer {
 
   server.registerTool(
     "grok_models",
-    { title: "List Grok models", description: "List Grok model ids with context window and price.", inputSchema: {} },
+    { title: "List Grok models", annotations: { readOnlyHint: true }, description: "List Grok model ids with context window and price.", inputSchema: {} },
     async () =>
       reply(
         xaiProvider()
@@ -304,21 +315,27 @@ interface RunAgentOptions {
   cwd: string;
   session?: string;
   model?: string;
+  readOnly?: boolean;
   signal: AbortSignal;
   onEvent?: (event: AgentEvent) => void;
 }
 
-function runAgent(opts: RunAgentOptions): Promise<AgentRun> {
-  const cli = fileURLToPath(new URL("./cli.js", import.meta.url));
-  const args = [
-    cli,
+export const READ_ONLY_ARGS = ["--tools", "read,grep,find,ls,web_search,x_search", "--no-mcp"];
+
+export function agentArgs(opts: Pick<RunAgentOptions, "prompt" | "session" | "model" | "readOnly">): string[] {
+  return [
     "--mode",
     "json",
+    ...(opts.readOnly ? READ_ONLY_ARGS : []),
     ...(opts.session ? ["--session", opts.session] : []),
     ...(opts.model ? ["--provider", "xai", "--model", opts.model] : []),
     "--",
     opts.prompt,
   ];
+}
+
+function runAgent(opts: RunAgentOptions): Promise<AgentRun> {
+  const args = [fileURLToPath(new URL("./cli.js", import.meta.url)), ...agentArgs(opts)];
 
   return new Promise((done, reject) => {
     const child = spawn(process.execPath, args, { cwd: opts.cwd, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });

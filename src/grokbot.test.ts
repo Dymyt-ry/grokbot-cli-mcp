@@ -6,7 +6,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { beforeAll, describe, expect, it } from "vitest";
 import grokbotExtension from "./extension.js";
-import { type AgentEvent, createGrokMcpServer, formatAgentRun, summarizeAgentEvents } from "./mcp.js";
+import { type AgentEvent, agentArgs, createGrokMcpServer, formatAgentRun, summarizeAgentEvents } from "./mcp.js";
 import { configureEnv, DEFAULT_MODEL, seedDefaultModel } from "./setup.js";
 import { isPrivateAddress, loadImage, outputPath, sniffImage } from "./xai.js";
 
@@ -107,6 +107,37 @@ describe("MCP server", () => {
       "grok_models",
       "grok_search_web",
       "grok_search_x",
+    ]);
+  });
+
+  it("marks grok_agent destructive so hosts ask before running it", async () => {
+    const { tools } = await (await connect()).listTools();
+    const byName = Object.fromEntries(tools.map((t) => [t.name, t.annotations]));
+    expect(byName.grok_agent).toMatchObject({ destructiveHint: true });
+    expect(byName.grok_search_x).toMatchObject({ readOnlyHint: true });
+  });
+
+  it("restricts a read_only agent to read/search tools without MCP", () => {
+    expect(agentArgs({ prompt: "-x", readOnly: true })).toEqual([
+      "--mode",
+      "json",
+      "--tools",
+      "read,grep,find,ls,web_search,x_search",
+      "--no-mcp",
+      "--",
+      "-x",
+    ]);
+    expect(agentArgs({ prompt: "p", session: "s", model: "grok-4.3" })).toEqual([
+      "--mode",
+      "json",
+      "--session",
+      "s",
+      "--provider",
+      "xai",
+      "--model",
+      "grok-4.3",
+      "--",
+      "p",
     ]);
   });
 

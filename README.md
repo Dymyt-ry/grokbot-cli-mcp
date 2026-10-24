@@ -71,7 +71,7 @@ _"have the grok agent audit src/auth and report back"_.
 | `grok_search_x` | Real-time X (Twitter) search. `handles`, `excluded_handles`, `from_date`, `to_date`. |
 | `grok_generate_image` | Text-to-image or image edit (`source`). Saved locally, returns paths. |
 | `grok_generate_video` | Text-to-video or image-to-video. Saved locally, returns the path. |
-| `grok_agent` | Runs the full grokbot agent in `directory`. Returns its answer, tool trail, cost and a `session_id` you can pass back to continue. Sends MCP progress per tool call. |
+| `grok_agent` | Runs the full grokbot agent in `directory`. Returns its answer, tool trail, cost and a `session_id` you can pass back to continue. Sends MCP progress per tool call. `read_only: true` limits it to read/search tools (no shell, no edits, no MCP servers). |
 | `grok_models` | Lists Grok model ids, context sizes and prices. |
 
 The MCP server uses the same credentials as the CLI (`XAI_API_KEY`, or whatever you signed in with via `/login`).
@@ -97,7 +97,10 @@ Check with `grokbot mcp list`, then from Claude: _"ask the grok agent to summari
 ## Security
 
 The grokbot agent (and so `grok_agent`) reads and writes files and runs shell commands as your user, like pi and
-Claude Code do. Point `grok_agent` only at directories you trust. pi's [security notes](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/security.md)
+Claude Code do. Point `grok_agent` only at directories you trust, and prefer `read_only: true` for research and reviews.
+The MCP tools carry annotations (`grok_agent` is marked destructive), so hosts like Claude Code ask before running it
+unless you allow it. Image sources must be real images, downloads only reach public hosts, and generated files stay
+inside the working directory. pi's [security notes](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/security.md)
 apply; its example `sandbox` and `permission-gate` extensions can add a boundary or approvals.
 
 ## Development
