@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { beforeAll, describe, expect, it } from "vitest";
-import { parseEntries, pickBot } from "./bots.js";
+import { botSlugs, parseEntries, pickBot } from "./bots.js";
 import { registerSkillSearch, SKILL_INDEX_LIMIT, searchSkills } from "./skills.js";
 import { buildPrompt, canWrite, describeCursorTool, parseToolCalls, visibleText } from "./cursor.js";
 import grokbotExtension, { isBareLogin, LOGIN_CHOICES } from "./extension.js";
@@ -22,6 +22,9 @@ beforeAll(() => {
   delete process.env.GROK_API_KEY;
   process.env.PI_CODING_AGENT_DIR = tmp();
   process.env.PI_OFFLINE = "1";
+  // No Cursor login either: the bots provider must stay off without touching the network.
+  delete process.env.CURSOR_ACCESS_TOKEN;
+  process.env.XDG_CONFIG_HOME = tmp();
 });
 
 describe("configureEnv", () => {
@@ -80,7 +83,7 @@ describe("pi integration", () => {
     expect(typeof pi.main).toBe("function");
   });
 
-  it("registers the Grok tools, the Cursor provider and a header", () => {
+  it("registers the Grok tools, the Cursor provider and a header", async () => {
     const tools: string[] = [];
     const events: string[] = [];
     const providers: string[] = [];
@@ -89,7 +92,7 @@ describe("pi integration", () => {
       registerProvider: (name: string) => providers.push(name),
       on: (name: string) => events.push(name),
     };
-    grokbotExtension(fakePi as never);
+    await grokbotExtension(fakePi as never);
     expect(tools).toEqual(["web_search", "x_search", "generate_image", "generate_video", "find_skill"]);
     expect(providers).toEqual(["cursor"]);
     expect(events).toContain("session_start");
@@ -384,5 +387,6 @@ describe("Grok Bot app client", () => {
     expect(pickBot(bots, "a2").name).toBe("giggle work");
     expect(() => pickBot(bots, "nope")).toThrow(/Bots: Grok Bot, giggle work/);
     expect(() => pickBot([], undefined)).toThrow(/No Grok Bot bots/);
+    expect(botSlugs([...bots, { agentId: "a3", name: "Grok  Bot!" }])).toEqual(["grok-bot", "giggle-work", "grok-bot-2"]);
   });
 });

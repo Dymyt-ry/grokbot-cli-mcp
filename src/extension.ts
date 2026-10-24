@@ -24,6 +24,7 @@ import {
 import { CURSOR_PROVIDER, cursorProvider } from "./cursor.js";
 import { VERSION } from "./setup.js";
 import { registerSkillSearch } from "./skills.js";
+import { registerBotProvider } from "./bots.js";
 
 const oneOf = <T extends string>(values: readonly T[], description?: string) =>
   Type.Union(
@@ -168,10 +169,11 @@ class GrokEditor extends CustomEditor {
 
 const LOGO = ["▄▀▀ █▀▄ ▄▀▄ █▄▀ ██▄ ▄▀▄ ▀█▀", "▀▄█ █▀▄ ▀▄▀ █ █ █▄█ ▀▄▀  █ "];
 
-export default function grokbot(pi: ExtensionAPI): void {
+export default async function grokbot(pi: ExtensionAPI): Promise<void> {
   for (const tool of [webSearch, xSearch, generateImage, generateVideo]) pi.registerTool(tool);
   pi.registerProvider(CURSOR_PROVIDER, cursorProvider);
   registerSkillSearch(pi);
+  await registerBotProvider(pi);
 
   pi.on("session_start", async (_event, ctx) => {
     if (ctx.mode !== "tui") return;
