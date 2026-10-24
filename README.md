@@ -30,13 +30,22 @@ grokbot
 Sign in once:
 
 ```bash
-grokbot login            # opens x.ai in your browser: sign in with Google, X or email, confirm the code
+grokbot login            # pick: Cursor, xAI account, or xAI API key
+grokbot login --cursor   # Grok through your Cursor account (needs the Cursor CLI, `cursor-agent`)
+grokbot login --xai      # opens x.ai in your browser: sign in with Google, X or email, confirm the code
 grokbot login --api-key  # or paste an API key from console.x.ai
 grokbot logout
 ```
 
-The same works inside the TUI with `/login`, or set `XAI_API_KEY` (`GROK_API_KEY` works too). Browser sign-in uses
-your SuperGrok / X Premium subscription; the CLI and `grokbot mcp` share the login.
+The same works inside the TUI with `/login` (Cursor first, then xAI), or set `XAI_API_KEY` (`GROK_API_KEY` works too).
+xAI browser sign-in uses your SuperGrok / X Premium subscription; the CLI and `grokbot mcp` share the login.
+
+**Cursor sign-in** runs Grok 4.7 through the [Cursor CLI](https://cursor.com/cli) (`cursor-agent`), picked
+automatically when it is your only login (or `/model` → "Grok 4.7 … (Cursor)"). Grok then reads, edits and runs commands
+with Cursor's own tools in your workspace, shown as `⚙ edit file.py` lines, and calls grokbot's tools through a
+prompt protocol. `web_search`, `x_search`, image/video generation and the MCP server still need xAI credentials. Each
+turn is one `cursor-agent` run, so it is slower than the xAI API and uses your Cursor plan under Cursor's terms. In a
+`grok_agent` `read_only` run, Cursor is limited to ask mode and stopped if it reaches for a write tool.
 
 Grok (`grok-4.7`) is the default model. Switch anytime with `/model` (any pi provider works).
 

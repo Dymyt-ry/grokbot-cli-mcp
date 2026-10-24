@@ -21,6 +21,7 @@ import {
   VIDEO_RESOLUTIONS,
   type XaiProvider,
 } from "./xai.js";
+import { CURSOR_PROVIDER, cursorProvider } from "./cursor.js";
 import { VERSION } from "./setup.js";
 
 const oneOf = <T extends string>(values: readonly T[], description?: string) =>
@@ -31,7 +32,9 @@ const oneOf = <T extends string>(values: readonly T[], description?: string) =>
 
 async function xaiFor(ctx: ExtensionContext): Promise<XaiProvider> {
   const key = await ctx.modelRegistry.getApiKeyForProvider("xai");
-  if (!key) throw new Error("Not signed in to xAI. Run /login here or `grokbot login` in a shell, or set XAI_API_KEY.");
+  if (!key) throw new Error(
+      "This tool needs xAI credentials (a Cursor sign-in covers chat only). Run /login and pick xAI, or set XAI_API_KEY.",
+    );
   return createProvider(key);
 }
 
@@ -128,14 +131,19 @@ const generateVideo = defineTool({
   },
 });
 
-/** grokbot only talks to Grok, so /login skips pi's list of every provider and goes straight to xAI. */
-export function grokOnlyCommand(text: string): string {
-  return text.trim() === "/login" ? "/login xai" : text;
+/** grokbot only talks to Grok: /login offers Cursor first, then xAI (whose own menu has SuperGrok/X Premium and API key). */
+export const LOGIN_CHOICES = [
+  ["Cursor (Grok with your Cursor account)", "/login cursor"],
+  ["xAI (SuperGrok, X Premium or API key)", "/login xai"],
+] as const;
+
+export function isBareLogin(text: string): boolean {
+  return text.trim() === "/login";
 }
 
-/** pi's editor, with submitted text passed through grokOnlyCommand (built-in slash commands run before extensions). */
+/** pi's editor with a Grok-only /login menu (built-in slash commands run before extensions, so it is intercepted here). */
 class GrokEditor extends CustomEditor {
-  constructor(...args: ConstructorParameters<typeof CustomEditor>) {
+  constructor(select: (title: string, options: string[]) => Promise<string | undefined>, ...args: ConstructorParameters<typeof CustomEditor>) {
     super(...args);
     let wrapped: ((text: string) => unknown) | undefined;
     // pi assigns onSubmit after constructing the editor; wrap whatever it assigns.
@@ -143,7 +151,15 @@ class GrokEditor extends CustomEditor {
       configurable: true,
       get: () => wrapped,
       set: (handler?: (text: string) => unknown) => {
-        wrapped = handler && ((text: string) => handler(grokOnlyCommand(text)));
+        wrapped =
+          handler &&
+          ((text: string) => {
+            if (!isBareLogin(text)) return handler(text);
+            void select("Sign in to grokbot:", LOGIN_CHOICES.map(([label]) => label)).then((picked) => {
+              const command = LOGIN_CHOICES.find(([label]) => label === picked)?.[1];
+              if (command) handler(command);
+            });
+          });
       },
     });
   }
@@ -153,11 +169,12 @@ const LOGO = ["▄▀▀ █▀▄ ▄▀▄ █▄▀ ██▄ ▄▀▄ ▀�
 
 export default function grokbot(pi: ExtensionAPI): void {
   for (const tool of [webSearch, xSearch, generateImage, generateVideo]) pi.registerTool(tool);
+  pi.registerProvider(CURSOR_PROVIDER, cursorProvider);
 
   pi.on("session_start", async (_event, ctx) => {
     if (ctx.mode !== "tui") return;
     ctx.ui.setTitle("grokbot");
-    ctx.ui.setEditorComponent((tui, theme, keybindings) => new GrokEditor(tui, theme, keybindings));
+    ctx.ui.setEditorComponent((tui, theme, keybindings) => new GrokEditor((title, options) => ctx.ui.select(title, options), tui, theme, keybindings));
     ctx.ui.setHeader((_tui, theme) => ({
       render: () => [
         "",
@@ -165,7 +182,7 @@ export default function grokbot(pi: ExtensionAPI): void {
         ` ${theme.fg("accent", LOGO[1])}  ${[keyHint("app.interrupt", "interrupt"), rawKeyHint("/", "commands"), rawKeyHint("!", "bash"), keyHint("app.model.select", "model")].join(theme.fg("muted", " · "))}`,
         "",
         theme.fg("dim", " Grok tools: web_search · x_search · generate_image · generate_video"),
-        theme.fg("dim", " Sign in: /login or `grokbot login` (Google, X or email via x.ai), or set XAI_API_KEY"),
+        theme.fg("dim", " Sign in: /login (Cursor or xAI) or `grokbot login`, or set XAI_API_KEY"),
         "",
       ],
       invalidate() {},

@@ -67,14 +67,29 @@ function show(event: AuthEvent): void {
   }
 }
 
+const METHODS = [
+  { id: "cursor", label: "Cursor (Grok with your Cursor account)" },
+  { id: "oauth", label: "xAI account: SuperGrok or X Premium (Google, X or email)" },
+  { id: "api_key", label: "xAI API key" },
+];
+
 export async function login(args: string[]): Promise<void> {
-  const useKey = args.includes("--api-key");
+  const flag = args.includes("--cursor") ? "cursor" : args.includes("--api-key") ? "api_key" : args.includes("--xai") ? "oauth" : undefined;
+  const method =
+    flag ?? (process.stdin.isTTY ? await ask({ type: "select", message: "Sign in with", options: METHODS } as AuthPrompt) : "oauth");
   const { ModelRuntime } = await import("@earendil-works/pi-coding-agent");
   const runtime = await ModelRuntime.create();
   const controller = new AbortController();
   process.once("SIGINT", () => controller.abort());
   try {
-    await runtime.login("xai", useKey ? "api_key" : "oauth", { signal: controller.signal, prompt: ask, notify: show });
+    if (method === "cursor") {
+      const { CURSOR_PROVIDER, cursorProvider } = await import("./cursor.js");
+      runtime.registerProvider(CURSOR_PROVIDER, cursorProvider);
+      await runtime.login(CURSOR_PROVIDER, "oauth", { signal: controller.signal, prompt: ask, notify: show });
+      process.stderr.write("Signed in with Cursor. Run `grokbot` to start (Grok 4.7 via Cursor).\n");
+      return;
+    }
+    await runtime.login("xai", method === "api_key" ? "api_key" : "oauth", { signal: controller.signal, prompt: ask, notify: show });
     process.stderr.write("Signed in to xAI. Run `grokbot` to start, or use `grokbot mcp` from Claude Code.\n");
   } catch (err) {
     process.stderr.write(`Login failed: ${err instanceof Error ? err.message : String(err)}\n`);

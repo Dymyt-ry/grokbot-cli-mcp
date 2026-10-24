@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { beforeAll, describe, expect, it } from "vitest";
-import grokbotExtension, { grokOnlyCommand } from "./extension.js";
+import { buildPrompt, canWrite, describeCursorTool, parseToolCalls, visibleText } from "./cursor.js";
+import grokbotExtension, { isBareLogin, LOGIN_CHOICES } from "./extension.js";
 import { type AgentEvent, agentArgs, createGrokMcpServer, formatAgentRun, summarizeAgentEvents } from "./mcp.js";
 import { browserCommand } from "./login.js";
 import { configureEnv, DEFAULT_MODEL, seedDefaultModel } from "./setup.js";
@@ -77,15 +78,18 @@ describe("pi integration", () => {
     expect(typeof pi.main).toBe("function");
   });
 
-  it("registers the Grok tools and a header", () => {
+  it("registers the Grok tools, the Cursor provider and a header", () => {
     const tools: string[] = [];
     const events: string[] = [];
+    const providers: string[] = [];
     const fakePi = {
       registerTool: (t: { name: string }) => tools.push(t.name),
+      registerProvider: (name: string) => providers.push(name),
       on: (name: string) => events.push(name),
     };
     grokbotExtension(fakePi as never);
     expect(tools).toEqual(["web_search", "x_search", "generate_image", "generate_video"]);
+    expect(providers).toEqual(["cursor"]);
     expect(events).toContain("session_start");
   });
 });
@@ -260,12 +264,60 @@ describe("browserCommand", () => {
   });
 });
 
-describe("grokOnlyCommand", () => {
-  it("sends /login straight to xAI and leaves everything else alone", () => {
-    expect(grokOnlyCommand("/login")).toBe("/login xai");
-    expect(grokOnlyCommand(" /login ")).toBe("/login xai");
-    expect(grokOnlyCommand("/login anthropic")).toBe("/login anthropic");
-    expect(grokOnlyCommand("/model")).toBe("/model");
-    expect(grokOnlyCommand("explain /login")).toBe("explain /login");
+describe("login menu", () => {
+  it("offers Cursor first, then xAI, and only intercepts a bare /login", () => {
+    expect(LOGIN_CHOICES.map(([, cmd]) => cmd)).toEqual(["/login cursor", "/login xai"]);
+    expect(isBareLogin(" /login ")).toBe(true);
+    expect(isBareLogin("/login anthropic")).toBe(false);
+    expect(isBareLogin("explain /login")).toBe(false);
+  });
+});
+
+describe("cursor provider", () => {
+  it("holds back a partial <tool_call> tag while streaming", () => {
+    expect(visibleText("Listing files <tool")).toBe("Listing files ");
+    expect(visibleText('Done <tool_call>{"name"')).toBe("Done ");
+    expect(visibleText("a < b")).toBe("a < b");
+  });
+
+  it("turns <tool_call> blocks into tool calls and keeps broken ones as text", () => {
+    const { calls, leftover } = parseToolCalls(
+      'Let me look.<tool_call>{"name":"bash","arguments":{"command":"ls"}}</tool_call>\n<tool_call>{oops}</tool_call>',
+    );
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ type: "toolCall", name: "bash", arguments: { command: "ls" } });
+    expect(leftover).toContain("{oops}");
+    expect(parseToolCalls("no tools here").calls).toEqual([]);
+  });
+
+  it("describes Cursor's own tool calls and knows which are read-only", () => {
+    expect(describeCursorTool({ readToolCall: { args: { path: "/w/src/a.py" } } }, "/w")).toEqual({ name: "read", readOnly: true, line: "read src/a.py" });
+    expect(describeCursorTool({ readToolCall: { args: { path: "/etc/hosts" } } }, "/w").line).toBe("read /etc/hosts");
+    expect(describeCursorTool({ shellToolCall: { args: { command: "ls" } } })).toEqual({ name: "shell", readOnly: false, line: "shell ls" });
+    expect(describeCursorTool({ editToolCall: { args: { path: "a.py" } } }).readOnly).toBe(false);
+    expect(canWrite([{ name: "read" }, { name: "edit" }])).toBe(true);
+    expect(canWrite([{ name: "read" }, { name: "grep" }])).toBe(false);
+  });
+
+  it("puts the tool protocol, tools and transcript into the prompt", () => {
+    const prompt = buildPrompt({
+      messages: [
+        { role: "user", content: "fix it", timestamp: 0 },
+        {
+          role: "assistant",
+          content: [{ type: "toolCall", id: "1", name: "read", arguments: { path: "a.py" } }],
+          api: "cursor-agent",
+          provider: "cursor",
+          model: "grok-4.7-low",
+          usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+          stopReason: "toolUse",
+          timestamp: 0,
+        },
+        { role: "toolResult", toolCallId: "1", toolName: "read", content: [{ type: "text", text: "x = 1" }], isError: false, timestamp: 0 },
+      ],
+    });
+    expect(prompt.indexOf("<protocol>")).toBe(0);
+    expect(prompt).toContain('[assistant]\n<tool_call>{"name":"read","arguments":{"path":"a.py"}}</tool_call>');
+    expect(prompt).toContain("[tool result read]\nx = 1");
   });
 });
