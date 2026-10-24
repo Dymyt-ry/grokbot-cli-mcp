@@ -1,7 +1,9 @@
 // xAI capabilities that pi's chat provider doesn't cover: live search and media generation.
 // Ported from superagent-ai/grok-cli (MIT).
-import { mkdirSync, readFileSync, existsSync, writeFileSync } from "node:fs";
-import { dirname, extname, isAbsolute, join, resolve } from "node:path";
+import { lookup } from "node:dns/promises";
+import { existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { BlockList, isIP } from "node:net";
+import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { createXai } from "@ai-sdk/xai";
 import { experimental_generateVideo as generateVideo, generateImage, generateText, type ToolSet } from "ai";
 
@@ -102,7 +104,7 @@ export async function createImage(
     const runId = stamp();
     const paths = res.images.map((img, i) => {
       const path = outputPath(cwd, "image", img.mediaType, input.output_path, i, res.images.length, runId);
-      writeFileSync(path, img.uint8Array);
+      writeFileSync(path, img.uint8Array, { flag: "wx" });
       return path;
     });
     return { ok: true, text: summarize("image", paths) };
@@ -139,7 +141,7 @@ export async function createVideo(
     const runId = stamp();
     const paths = res.videos.map((vid, i) => {
       const path = outputPath(cwd, "video", vid.mediaType, input.output_path, i, res.videos.length, runId);
-      writeFileSync(path, vid.uint8Array);
+      writeFileSync(path, vid.uint8Array, { flag: "wx" });
       return path;
     });
     return { ok: true, text: summarize("video", paths) };
@@ -148,13 +150,6 @@ export async function createVideo(
   }
 }
 
-const MEDIA_TYPES: Record<string, string> = {
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".png": "image/png",
-  ".webp": "image/webp",
-  ".gif": "image/gif",
-};
 const EXTENSIONS: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -163,24 +158,80 @@ const EXTENSIONS: Record<string, string> = {
   "video/mp4": "mp4",
   "video/webm": "webm",
 };
+const MAX_SOURCE_BYTES = 20 * 1024 * 1024;
+
+// Tool arguments come from a model (and through MCP, from whatever steers it), so `source` and `output_path`
+// are untrusted: sources must really be images, downloads must reach public hosts, outputs stay inside cwd.
+
+/** Real image type from magic bytes, so a "source image" can't be ~/.ssh/id_rsa or a .env file. */
+export function sniffImage(data: Uint8Array): string | undefined {
+  const ascii = (from: number, to: number) => String.fromCharCode(...data.subarray(from, to));
+  if (data[0] === 0x89 && ascii(1, 4) === "PNG") return "image/png";
+  if (data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) return "image/jpeg";
+  if (ascii(0, 3) === "GIF") return "image/gif";
+  if (ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP") return "image/webp";
+  return undefined;
+}
 
 export async function loadImage(source: string, cwd: string, signal?: AbortSignal) {
-  let data: Uint8Array;
-  let mediaType: string;
-  if (/^https?:\/\//i.test(source)) {
-    const res = await fetch(source, { signal });
-    if (!res.ok) throw new Error(`Source image download failed: ${res.status} ${res.statusText}`);
-    data = new Uint8Array(await res.arrayBuffer());
-    mediaType = res.headers.get("content-type") || MEDIA_TYPES[extname(new URL(source).pathname).toLowerCase()] || "image/png";
-  } else {
-    const path = isAbsolute(source) ? source : resolve(cwd, source);
-    if (!existsSync(path)) throw new Error(`Source image not found: ${source}`);
-    data = readFileSync(path);
-    mediaType = MEDIA_TYPES[extname(path).toLowerCase()] || "image/png";
-  }
+  const data = /^https?:\/\//i.test(source) ? await fetchImage(source, signal) : readLocalImage(source, cwd);
+  const mediaType = sniffImage(data);
+  if (!mediaType) throw new Error(`Not a PNG, JPEG, GIF or WebP image: ${source}`);
   return { data, mediaType, dataUrl: `data:${mediaType};base64,${Buffer.from(data).toString("base64")}` };
 }
 
+function readLocalImage(source: string, cwd: string): Uint8Array {
+  const path = resolve(cwd, source);
+  if (!existsSync(path)) throw new Error(`Source image not found: ${source}`);
+  if (statSync(path).size > MAX_SOURCE_BYTES) throw new Error(`Source image is larger than 20 MB: ${source}`);
+  return readFileSync(path);
+}
+
+const PRIVATE_RANGES = new BlockList();
+for (const [net, prefix] of [
+  ["0.0.0.0", 8],
+  ["10.0.0.0", 8],
+  ["100.64.0.0", 10],
+  ["127.0.0.0", 8],
+  ["169.254.0.0", 16],
+  ["172.16.0.0", 12],
+  ["192.168.0.0", 16],
+] as const) {
+  PRIVATE_RANGES.addSubnet(net, prefix, "ipv4");
+}
+for (const [net, prefix] of [
+  ["::", 128],
+  ["::1", 128],
+  ["fc00::", 7],
+  ["fe80::", 10],
+] as const) {
+  PRIVATE_RANGES.addSubnet(net, prefix, "ipv6");
+}
+
+export function isPrivateAddress(address: string): boolean {
+  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(address)?.[1];
+  if (mapped || isIP(address) === 4) return PRIVATE_RANGES.check(mapped ?? address, "ipv4");
+  return PRIVATE_RANGES.check(address, "ipv6");
+}
+
+async function fetchImage(source: string, signal?: AbortSignal): Promise<Uint8Array> {
+  const url = new URL(source);
+  const host = url.hostname.replace(/^\[|\]$/g, "");
+  const addresses = isIP(host) ? [{ address: host }] : await lookup(host, { all: true });
+  // ponytail: checked at lookup time, so DNS rebinding between lookup and fetch is not covered; pin the IP if that matters.
+  if (addresses.some((a) => isPrivateAddress(a.address))) {
+    throw new Error(`Refusing to download from a private or local address: ${url.host}`);
+  }
+  const res = await fetch(url, { signal, redirect: "error" });
+  if (!res.ok) throw new Error(`Source image download failed: ${res.status} ${res.statusText}`);
+  if (!res.headers.get("content-type")?.startsWith("image/")) throw new Error(`URL is not an image: ${source}`);
+  if (Number(res.headers.get("content-length")) > MAX_SOURCE_BYTES) throw new Error("Source image is larger than 20 MB");
+  const data = new Uint8Array(await res.arrayBuffer());
+  if (data.length > MAX_SOURCE_BYTES) throw new Error("Source image is larger than 20 MB");
+  return data;
+}
+
+/** Where to save generated media; never outside cwd. Write with flag "wx" so existing files are not overwritten. */
 export function outputPath(
   cwd: string,
   kind: "image" | "video",
@@ -195,8 +246,17 @@ export function outputPath(
   const current = extname(path);
   if (total > 1) path = `${current ? path.slice(0, -current.length) : path}-${index + 1}.${ext}`;
   else if (!current) path = `${path}.${ext}`;
+  assertInside(cwd, path);
   mkdirSync(dirname(path), { recursive: true });
+  assertInside(realpathSync(cwd), join(realpathSync(dirname(path)), basename(path))); // no escape via symlinked dirs
   return path;
+}
+
+function assertInside(root: string, path: string): void {
+  const rel = relative(resolve(root), path);
+  if (rel === "" || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+    throw new Error(`output_path must be inside the working directory (${root})`);
+  }
 }
 
 function summarize(kind: string, paths: string[]): string {

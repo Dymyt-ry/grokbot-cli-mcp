@@ -8,7 +8,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import grokbotExtension from "./extension.js";
 import { type AgentEvent, createGrokMcpServer, formatAgentRun, summarizeAgentEvents } from "./mcp.js";
 import { configureEnv, DEFAULT_MODEL, seedDefaultModel } from "./setup.js";
-import { outputPath } from "./xai.js";
+import { isPrivateAddress, loadImage, outputPath, sniffImage } from "./xai.js";
 
 const tmp = () => mkdtempSync(join(tmpdir(), "grokbot-test-"));
 
@@ -180,6 +180,39 @@ describe("outputPath", () => {
     expect(outputPath(cwd, "image", "image/jpeg", "out/cat", 1, 2, "r")).toBe(join(cwd, "out", "cat-2.jpg"));
     expect(outputPath(cwd, "video", undefined, undefined, 0, 1, "r")).toBe(
       join(cwd, ".grokbot", "generated-media", "video-r.mp4"),
+    );
+  });
+});
+
+describe("untrusted tool arguments", () => {
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
+
+  it("only accepts real images as local sources", async () => {
+    const cwd = tmp();
+    writeFileSync(join(cwd, "id_rsa"), "-----BEGIN OPENSSH PRIVATE KEY-----");
+    writeFileSync(join(cwd, "cat.png"), "not really a png");
+    writeFileSync(join(cwd, "ok.bin"), png);
+    await expect(loadImage("id_rsa", cwd)).rejects.toThrow("Not a PNG, JPEG, GIF or WebP image");
+    await expect(loadImage("cat.png", cwd)).rejects.toThrow("Not a PNG");
+    expect((await loadImage("ok.bin", cwd)).mediaType).toBe("image/png");
+    expect(sniffImage(Buffer.from("RIFF0000WEBPVP8 "))).toBe("image/webp");
+  });
+
+  it("refuses to download from private or local addresses", async () => {
+    for (const ip of ["127.0.0.1", "10.1.2.3", "169.254.169.254", "192.168.0.1", "::1", "fe80::1", "::ffff:127.0.0.1"]) {
+      expect(isPrivateAddress(ip), ip).toBe(true);
+    }
+    for (const ip of ["8.8.8.8", "1.1.1.1", "2606:4700:4700::1111"]) expect(isPrivateAddress(ip), ip).toBe(false);
+    await expect(loadImage("http://127.0.0.1:9/cat.png", tmp())).rejects.toThrow("private or local address");
+    await expect(loadImage("http://[::1]/cat.png", tmp())).rejects.toThrow("private or local address");
+    await expect(loadImage("http://localhost/cat.png", tmp())).rejects.toThrow("private or local address");
+  });
+
+  it("keeps outputs inside the working directory", () => {
+    const cwd = tmp();
+    expect(() => outputPath(cwd, "image", "image/png", "../escape.png", 0, 1, "r")).toThrow("inside the working directory");
+    expect(() => outputPath(cwd, "image", "image/png", join(tmpdir(), "abs.png"), 0, 1, "r")).toThrow(
+      "inside the working directory",
     );
   });
 });
