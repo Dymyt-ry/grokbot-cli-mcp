@@ -1,10 +1,87 @@
-# grok-cli: an open-source coding agent for the Grok API
+# grokbot-cli-mcp
 
-[![CI](https://github.com/superagent-ai/grok-cli/actions/workflows/typecheck.yml/badge.svg)](https://github.com/superagent-ai/grok-cli/actions/workflows/typecheck.yml)
-[![npm](https://img.shields.io/npm/v/grok-dev.svg)](https://www.npmjs.com/package/grok-dev)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Bun](https://img.shields.io/badge/Bun-1.x-000000?logo=bun&logoColor=white)](https://bun.sh/)
+**Grok as a CLI agent _and_ as an MCP server for Claude Code.**
+
+A fork of [superagent-ai/grok-cli](https://github.com/superagent-ai/grok-cli) (MIT) that adds `grokbot mcp`: a stdio
+[Model Context Protocol](https://modelcontextprotocol.io) server, so Claude Code (or Cursor, Codex, any MCP host) can
+use Grok's live X/web search, vision, image/video generation, or hand a whole task to the autonomous Grok agent.
+
+```
+Claude Code ──MCP──▶ grokbot mcp ──┬─▶ xAI API   (ask, search web/X, image, video)
+                                   └─▶ grokbot -p (full agent: files, shell, sub-agents, its own MCPs e.g. email)
+```
+
+## Install
+
+Requires [Bun](https://bun.sh) and an xAI API key from [console.x.ai](https://console.x.ai).
+
+```bash
+git clone https://github.com/cufelix/grokbot-cli-mcp.git
+cd grokbot-cli-mcp
+bun install && bun run build && bun link     # puts `grokbot` on your PATH
+grokbot -k xai-...                            # saves the key to ~/.grok/user-settings.json (or export GROK_API_KEY)
+```
+
+## Use it from Claude Code
+
+```bash
+claude mcp add --scope user grokbot -- grokbot mcp
+claude mcp list          # grokbot: grokbot mcp - ✔ Connected
+```
+
+Then just ask Claude things like _"use grok to search X for what people say about Bun 2"_ or
+_"have the grok agent review src/ and report back"_.
+
+| Tool | What it does |
+|---|---|
+| `grok_ask` | One-shot prompt to any Grok model; `images` (png/jpg paths or URLs) for vision; `reasoning_effort`. Second opinions, brainstorming. |
+| `grok_search_web` | Live web search, synthesized answer + source URLs. `allowed_domains` / `excluded_domains`. |
+| `grok_search_x` | Real-time X (Twitter) search. `handles`, `excluded_handles`, `from_date`, `to_date`. |
+| `grok_generate_image` | Text-to-image or image edit (`source`). Saved locally, returns paths. |
+| `grok_generate_video` | Text-to-video or image-to-video. Saved locally, returns path. |
+| `grok_agent` | Runs the full Grok agent headlessly in `directory`. Returns answer, tool trail, cost and a `session_id` to continue later. Streams MCP progress per tool call. |
+| `grok_models` | Lists model ids, context sizes, prices. |
+
+Other hosts use the same command, e.g. a project `.mcp.json`:
+
+```json
+{ "mcpServers": { "grokbot": { "command": "grokbot", "args": ["mcp"] } } }
+```
+
+### Giving Grok access to email (or anything else)
+
+`grok_agent` loads the MCP servers configured for grokbot itself, so whatever you connect to Grok, Claude can reach
+through it. Add servers with `/mcps` in the TUI or in `~/.grok/user-settings.json`, e.g. a Gmail MCP:
+
+```json
+{
+  "mcp": {
+    "servers": [
+      { "id": "gmail", "label": "Gmail", "enabled": true, "transport": "stdio",
+        "command": "npx", "args": ["-y", "@gongrzhe/server-gmail-autoauth-mcp"] }
+    ]
+  }
+}
+```
+
+Then from Claude: _"ask the grok agent to summarize my unread email from today"_.
+
+## Use it as a CLI
+
+Everything from upstream works, with the binary named `grokbot` (the docs below say `grok`):
+
+```bash
+grokbot                                    # interactive TUI agent
+grokbot -p "summarize the repo" -d ~/code  # headless
+grokbot -p "..." --format json             # JSONL event stream
+grokbot models
+```
+
+Config and sessions live in `~/.grok/`, shared with upstream grok-cli.
+
+---
+
+## Upstream grok-cli documentation
 
 > **Disclaimer:** This project is community-built, open-source, and **not affiliated with, endorsed by, or sponsored by xAI Corp.** "Grok" is a trademark of xAI Corp. This tool uses the publicly available Grok API.
 
