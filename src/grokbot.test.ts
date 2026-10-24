@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { beforeAll, describe, expect, it } from "vitest";
+import { registerSkillSearch, SKILL_INDEX_LIMIT, searchSkills } from "./skills.js";
 import { buildPrompt, canWrite, describeCursorTool, parseToolCalls, visibleText } from "./cursor.js";
 import grokbotExtension, { isBareLogin, LOGIN_CHOICES } from "./extension.js";
 import { type AgentEvent, agentArgs, createGrokMcpServer, formatAgentRun, summarizeAgentEvents } from "./mcp.js";
@@ -88,7 +89,7 @@ describe("pi integration", () => {
       on: (name: string) => events.push(name),
     };
     grokbotExtension(fakePi as never);
-    expect(tools).toEqual(["web_search", "x_search", "generate_image", "generate_video"]);
+    expect(tools).toEqual(["web_search", "x_search", "generate_image", "generate_video", "find_skill"]);
     expect(providers).toEqual(["cursor"]);
     expect(events).toContain("session_start");
   });
@@ -318,5 +319,38 @@ describe("cursor provider", () => {
     expect(prompt.indexOf("<protocol>")).toBe(0);
     expect(prompt).toContain('[assistant]\n<tool_call>{"name":"read","arguments":{"path":"a.py"}}</tool_call>');
     expect(prompt).toContain("[tool result read]\nx = 1");
+  });
+});
+
+describe("skills on demand", () => {
+  const skill = (name: string, description = `${name} helper`) => ({ name, description, filePath: `/s/${name}/SKILL.md`, disableModelInvocation: false });
+
+  it("ranks name hits above description hits", () => {
+    const skills = [skill("pdf", "Fill and merge PDF forms"), skill("docs", "Write docs, also exports to pdf"), skill("rust")];
+    expect(searchSkills(skills, "PDF forms").map((s) => s.name)).toEqual(["pdf", "docs"]);
+    expect(searchSkills(skills, "kubernetes")).toEqual([]);
+  });
+
+  it("takes a long skill index out of the prompt and serves it through find_skill", async () => {
+    let handler: ((event: unknown) => void) | undefined;
+    let tool: { execute: (...args: unknown[]) => Promise<{ content: { text: string }[] }> } | undefined;
+    registerSkillSearch({
+      registerTool: (t: never) => (tool = t),
+      on: (_name: string, h: (event: unknown) => void) => (handler = h),
+    } as never);
+
+    const many = Array.from({ length: SKILL_INDEX_LIMIT + 1 }, (_, i) => skill(`skill-${i}`));
+    many.push(skill("pdf-tools", "Extract text from PDF files"));
+    const options = { skills: many, sections: {} as Record<string, string> };
+    handler?.({ systemPromptOptions: options });
+    expect(options.skills).toEqual([]);
+    expect(options.sections.skills).toContain("find_skill");
+    const result = await tool?.execute("id", { query: "pdf text" });
+    expect(result?.content[0].text).toContain("/s/pdf-tools/SKILL.md");
+
+    const few = { skills: [skill("pdf")], sections: {} as Record<string, string> };
+    handler?.({ systemPromptOptions: few });
+    expect(few.skills).toHaveLength(1);
+    expect(few.sections.skills).toBeUndefined();
   });
 });

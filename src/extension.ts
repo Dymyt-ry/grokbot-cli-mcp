@@ -23,6 +23,7 @@ import {
 } from "./xai.js";
 import { CURSOR_PROVIDER, cursorProvider } from "./cursor.js";
 import { VERSION } from "./setup.js";
+import { registerSkillSearch } from "./skills.js";
 
 const oneOf = <T extends string>(values: readonly T[], description?: string) =>
   Type.Union(
@@ -170,6 +171,7 @@ const LOGO = ["▄▀▀ █▀▄ ▄▀▄ █▄▀ ██▄ ▄▀▄ ▀�
 export default function grokbot(pi: ExtensionAPI): void {
   for (const tool of [webSearch, xSearch, generateImage, generateVideo]) pi.registerTool(tool);
   pi.registerProvider(CURSOR_PROVIDER, cursorProvider);
+  registerSkillSearch(pi);
 
   pi.on("session_start", async (_event, ctx) => {
     if (ctx.mode !== "tui") return;

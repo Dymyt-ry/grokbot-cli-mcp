@@ -110,6 +110,13 @@ grokbot mcp add gmail -- npx -y @gongrzhe/server-gmail-autoauth-mcp
 
 Check with `grokbot mcp list`, then from Claude: _"ask the grok agent to summarize today's unread email"_.
 
+## Skills
+
+grokbot uses pi's [skills](https://agentskills.io) (`~/.agents/skills`, `~/.grokbot/agent/skills`, project
+`.agents/skills`). A skill's instructions load only when a task needs them. With more than 30 skills installed, even
+the list of names and descriptions stays out of the prompt: Grok looks skills up with the `find_skill` tool instead,
+which keeps a turn around 20k tokens rather than 100k+. `/skill:name` still loads one directly.
+
 ## Security
 
 The grokbot agent (and so `grok_agent`) reads and writes files and runs shell commands as your user, like pi and
