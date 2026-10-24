@@ -45,21 +45,21 @@ describe("configureEnv", () => {
 describe("seedDefaultModel", () => {
   const read = (dir: string) => JSON.parse(readFileSync(join(dir, "settings.json"), "utf8"));
 
-  it("makes Grok the default on first run", () => {
+  it("makes Grok the default and keeps startup quiet on first run", () => {
     const dir = join(tmp(), "agent");
     seedDefaultModel(dir);
-    expect(read(dir)).toEqual({ defaultProvider: "xai", defaultModel: DEFAULT_MODEL });
+    expect(read(dir)).toEqual({ defaultProvider: "xai", defaultModel: DEFAULT_MODEL, quietStartup: "header" });
   });
 
   it("keeps other settings and never overrides a chosen model", () => {
     const dir = tmp();
     writeFileSync(join(dir, "settings.json"), JSON.stringify({ theme: "dark" }));
     seedDefaultModel(dir);
-    expect(read(dir)).toEqual({ theme: "dark", defaultProvider: "xai", defaultModel: DEFAULT_MODEL });
+    expect(read(dir)).toEqual({ theme: "dark", defaultProvider: "xai", defaultModel: DEFAULT_MODEL, quietStartup: "header" });
 
-    writeFileSync(join(dir, "settings.json"), JSON.stringify({ defaultProvider: "anthropic" }));
+    writeFileSync(join(dir, "settings.json"), JSON.stringify({ defaultProvider: "anthropic", quietStartup: false }));
     seedDefaultModel(dir);
-    expect(read(dir)).toEqual({ defaultProvider: "anthropic" });
+    expect(read(dir)).toEqual({ defaultProvider: "anthropic", quietStartup: false });
   });
 
   it("leaves an unparsable settings file untouched", () => {

@@ -15,7 +15,7 @@ export function configureEnv(env: NodeJS.ProcessEnv = process.env): void {
   if (env.GROK_API_KEY && !env.XAI_API_KEY) env.XAI_API_KEY = env.GROK_API_KEY;
 }
 
-/** Make xAI Grok the startup model unless the user already picked one. */
+/** First-run defaults: Grok as the model, startup output trimmed to the header. Never overrides a user choice. */
 export function seedDefaultModel(agentDir: string): void {
   const file = join(agentDir, "settings.json");
   let settings: Record<string, unknown> = {};
@@ -26,7 +26,11 @@ export function seedDefaultModel(agentDir: string): void {
       return; // leave a hand-edited file alone; pi reports the parse error itself
     }
   }
-  if (settings.defaultProvider || settings.defaultModel) return;
+  const seeded = { ...settings };
+  if (!settings.defaultProvider && !settings.defaultModel) Object.assign(seeded, { defaultProvider: "xai", defaultModel: DEFAULT_MODEL });
+  // pi lists every discovered skill/extension at startup, which can push the header and prompts off screen.
+  if (!("quietStartup" in settings)) seeded.quietStartup = "header";
+  if (Object.keys(seeded).length === Object.keys(settings).length) return;
   mkdirSync(agentDir, { recursive: true });
-  writeFileSync(file, `${JSON.stringify({ ...settings, defaultProvider: "xai", defaultModel: DEFAULT_MODEL }, null, 2)}\n`);
+  writeFileSync(file, `${JSON.stringify(seeded, null, 2)}\n`);
 }
