@@ -346,7 +346,7 @@ function parseHeadlessOutputFormat(value: string): HeadlessOutputFormat {
 }
 
 program
-  .name("grok")
+  .name("grokbot")
   .description("AI coding agent powered by Grok — built with Bun and OpenTUI")
   .version(packageJson.version)
   .argument("[message...]", "Initial message to send")

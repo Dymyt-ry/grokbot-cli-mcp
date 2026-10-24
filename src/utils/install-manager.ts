@@ -7,7 +7,7 @@ import readline from "readline";
 import semverGt from "semver/functions/gt.js";
 import semverValid from "semver/functions/valid.js";
 
-export const GROK_GITHUB_REPO = "superagent-ai/grok-cli";
+export const GROK_GITHUB_REPO = "cufelix/grokbot-cli-mcp";
 export const GROK_RELEASES_API = `https://api.github.com/repos/${GROK_GITHUB_REPO}/releases`;
 export const SCRIPT_INSTALL_METHOD = "script";
 
