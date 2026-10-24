@@ -187,31 +187,41 @@ function readLocalImage(source: string, cwd: string): Uint8Array {
   return readFileSync(path);
 }
 
-const PRIVATE_RANGES = new BlockList();
+// Separate lists: in one BlockList the ::ffff:0:0/96 rule would also match every IPv4 address.
+const PRIVATE_V4 = new BlockList();
+const PRIVATE_V6 = new BlockList();
 for (const [net, prefix] of [
-  ["0.0.0.0", 8],
+  ["0.0.0.0", 8], // "this network"
   ["10.0.0.0", 8],
-  ["100.64.0.0", 10],
+  ["100.64.0.0", 10], // CGNAT
   ["127.0.0.0", 8],
-  ["169.254.0.0", 16],
+  ["169.254.0.0", 16], // link-local, cloud metadata
   ["172.16.0.0", 12],
+  ["192.0.0.0", 24],
+  ["192.0.2.0", 24],
   ["192.168.0.0", 16],
+  ["198.18.0.0", 15],
+  ["198.51.100.0", 24],
+  ["203.0.113.0", 24],
+  ["224.0.0.0", 3], // multicast + reserved, up to 255.255.255.255
 ] as const) {
-  PRIVATE_RANGES.addSubnet(net, prefix, "ipv4");
+  PRIVATE_V4.addSubnet(net, prefix, "ipv4");
 }
 for (const [net, prefix] of [
-  ["::", 128],
-  ["::1", 128],
-  ["fc00::", 7],
-  ["fe80::", 10],
+  ["::", 127], // unspecified and loopback
+  ["::ffff:0:0", 96], // IPv4-mapped, in any notation (the URL parser rewrites ::ffff:127.0.0.1 to ::ffff:7f00:1)
+  ["64:ff9b::", 96], // NAT64
+  ["64:ff9b:1::", 48],
+  ["2002::", 16], // 6to4 embeds an IPv4 address
+  ["fc00::", 7], // unique local
+  ["fe80::", 10], // link-local
+  ["ff00::", 8], // multicast
 ] as const) {
-  PRIVATE_RANGES.addSubnet(net, prefix, "ipv6");
+  PRIVATE_V6.addSubnet(net, prefix, "ipv6");
 }
 
 export function isPrivateAddress(address: string): boolean {
-  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(address)?.[1];
-  if (mapped || isIP(address) === 4) return PRIVATE_RANGES.check(mapped ?? address, "ipv4");
-  return PRIVATE_RANGES.check(address, "ipv6");
+  return isIP(address) === 4 ? PRIVATE_V4.check(address, "ipv4") : PRIVATE_V6.check(address, "ipv6");
 }
 
 async function fetchImage(source: string, signal?: AbortSignal): Promise<Uint8Array> {

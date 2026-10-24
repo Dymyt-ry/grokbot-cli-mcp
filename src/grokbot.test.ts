@@ -199,13 +199,15 @@ describe("untrusted tool arguments", () => {
   });
 
   it("refuses to download from private or local addresses", async () => {
-    for (const ip of ["127.0.0.1", "10.1.2.3", "169.254.169.254", "192.168.0.1", "::1", "fe80::1", "::ffff:127.0.0.1"]) {
+    for (const ip of ["127.0.0.1", "10.1.2.3", "169.254.169.254", "192.168.0.1", "::1", "fe80::1", "::ffff:127.0.0.1", "::ffff:7f00:1", "64:ff9b::a9fe:a9fe", "2002:7f00:1::", "224.0.0.1"]) {
       expect(isPrivateAddress(ip), ip).toBe(true);
     }
     for (const ip of ["8.8.8.8", "1.1.1.1", "2606:4700:4700::1111"]) expect(isPrivateAddress(ip), ip).toBe(false);
     await expect(loadImage("http://127.0.0.1:9/cat.png", tmp())).rejects.toThrow("private or local address");
     await expect(loadImage("http://[::1]/cat.png", tmp())).rejects.toThrow("private or local address");
     await expect(loadImage("http://localhost/cat.png", tmp())).rejects.toThrow("private or local address");
+    await expect(loadImage("http://[::ffff:127.0.0.1]/cat.png", tmp())).rejects.toThrow("private or local address");
+    await expect(loadImage("http://2130706433/cat.png", tmp())).rejects.toThrow("private or local address");
   });
 
   it("keeps outputs inside the working directory", () => {
