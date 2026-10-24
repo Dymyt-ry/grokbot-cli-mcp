@@ -10,6 +10,12 @@ if (args.length === 1 && (args[0] === "--version" || args[0] === "-v")) {
   process.exit(0);
 }
 
+if (args[0] === "login" || args[0] === "logout") {
+  const auth = await import("./login.js");
+  await (args[0] === "login" ? auth.login(args.slice(1)) : auth.logout());
+  process.exit();
+}
+
 // `grokbot mcp` (or `mcp serve`) runs our server; `grokbot mcp list|login|logout` stays pi's MCP client command.
 if (args[0] === "mcp" && (args.length === 1 || args[1] === "serve")) {
   // stdout carries the MCP protocol; keep stray logs off it.

@@ -31,7 +31,7 @@ const reply = (text: string, isError = false): ToolResponse => ({
 });
 const fromResult = (r: Result) => reply(r.text, !r.ok);
 
-/** API key from env, else whatever `grokbot` stored via /login (API key or SuperGrok/X Premium OAuth). */
+/** API key from env, else whatever `grokbot login` or /login stored (x.ai OAuth or API key). */
 async function resolveApiKey(): Promise<string | undefined> {
   if (process.env.XAI_API_KEY) return process.env.XAI_API_KEY;
   const { ModelRegistry, ModelRuntime } = await import("@earendil-works/pi-coding-agent");
@@ -40,7 +40,7 @@ async function resolveApiKey(): Promise<string | undefined> {
 
 async function provider(): Promise<XaiProvider> {
   const key = await resolveApiKey();
-  if (!key) throw new Error("No xAI credentials. Set XAI_API_KEY, or run `grokbot` and use /login once.");
+  if (!key) throw new Error("No xAI credentials. Run `grokbot login` once (Google, X or email via x.ai), or set XAI_API_KEY.");
   return createProvider(key);
 }
 

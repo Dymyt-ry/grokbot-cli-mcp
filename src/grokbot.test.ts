@@ -7,6 +7,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { beforeAll, describe, expect, it } from "vitest";
 import grokbotExtension from "./extension.js";
 import { type AgentEvent, agentArgs, createGrokMcpServer, formatAgentRun, summarizeAgentEvents } from "./mcp.js";
+import { browserCommand } from "./login.js";
 import { configureEnv, DEFAULT_MODEL, seedDefaultModel } from "./setup.js";
 import { isPrivateAddress, loadImage, outputPath, sniffImage } from "./xai.js";
 
@@ -247,5 +248,14 @@ describe("untrusted tool arguments", () => {
     expect(() => outputPath(cwd, "image", "image/png", join(tmpdir(), "abs.png"), 0, 1, "r")).toThrow(
       "inside the working directory",
     );
+  });
+});
+
+describe("browserCommand", () => {
+  it("opens the login page without a shell on every OS", () => {
+    const url = "https://accounts.x.ai/oauth2/device?user_code=AB&x=1";
+    expect(browserCommand(url, "darwin")).toEqual(["open", [url]]);
+    expect(browserCommand(url, "linux")).toEqual(["xdg-open", [url]]);
+    expect(browserCommand(url, "win32")).toEqual(["rundll32", ["url.dll,FileProtocolHandler", url]]);
   });
 });

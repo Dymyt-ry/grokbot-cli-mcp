@@ -27,10 +27,16 @@ npm install -g grokbot-cli-mcp
 grokbot
 ```
 
-Sign in once, either way:
+Sign in once:
 
-- In the TUI, run `/login` and pick **xAI**: sign in with your **SuperGrok or X Premium** subscription, or paste an API key.
-- Or set an API key from [console.x.ai](https://console.x.ai): `export XAI_API_KEY=xai-...` (`GROK_API_KEY` works too).
+```bash
+grokbot login            # opens x.ai in your browser: sign in with Google, X or email, confirm the code
+grokbot login --api-key  # or paste an API key from console.x.ai
+grokbot logout
+```
+
+The same works inside the TUI with `/login`, or set `XAI_API_KEY` (`GROK_API_KEY` works too). Browser sign-in uses
+your SuperGrok / X Premium subscription; the CLI and `grokbot mcp` share the login.
 
 Grok (`grok-4.7`) is the default model. Switch anytime with `/model` (any pi provider works).
 

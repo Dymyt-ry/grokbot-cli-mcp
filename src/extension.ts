@@ -30,7 +30,7 @@ const oneOf = <T extends string>(values: readonly T[], description?: string) =>
 
 async function xaiFor(ctx: ExtensionContext): Promise<XaiProvider> {
   const key = await ctx.modelRegistry.getApiKeyForProvider("xai");
-  if (!key) throw new Error("Not signed in to xAI. Run /login (SuperGrok / X Premium) or set XAI_API_KEY.");
+  if (!key) throw new Error("Not signed in to xAI. Run /login here or `grokbot login` in a shell, or set XAI_API_KEY.");
   return createProvider(key);
 }
 
@@ -142,7 +142,7 @@ export default function grokbot(pi: ExtensionAPI): void {
         ` ${theme.fg("accent", LOGO[1])}  ${[keyHint("app.interrupt", "interrupt"), rawKeyHint("/", "commands"), rawKeyHint("!", "bash"), keyHint("app.model.select", "model")].join(theme.fg("muted", " · "))}`,
         "",
         theme.fg("dim", " Grok tools: web_search · x_search · generate_image · generate_video"),
-        theme.fg("dim", " Sign in: /login (SuperGrok, X Premium or API key) or set XAI_API_KEY"),
+        theme.fg("dim", " Sign in: /login or `grokbot login` (Google, X or email via x.ai), or set XAI_API_KEY"),
         "",
       ],
       invalidate() {},
