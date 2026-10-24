@@ -1,5 +1,7 @@
 # grokbot
 
+![grokbot demo](docs/demo.gif)
+
 **Grok in your terminal, and Grok inside Claude Code.**
 
 `grokbot` is two things in one npm package:
