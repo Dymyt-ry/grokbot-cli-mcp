@@ -1,0 +1,29 @@
+#!/usr/bin/env node
+import { configureEnv, seedDefaultModel, VERSION } from "./setup.js";
+
+const args = process.argv.slice(2);
+configureEnv();
+
+if (args.length === 1 && (args[0] === "--version" || args[0] === "-v")) {
+  const { VERSION: PI_VERSION } = await import("@earendil-works/pi-coding-agent");
+  console.log(`grokbot ${VERSION} (pi ${PI_VERSION})`);
+  process.exit(0);
+}
+
+// `grokbot mcp` (or `mcp serve`) runs our server; `grokbot mcp list|login|logout` stays pi's MCP client command.
+if (args[0] === "mcp" && (args.length === 1 || args[1] === "serve")) {
+  // stdout carries the MCP protocol; keep stray logs off it.
+  console.log = console.error;
+  const { startMcpServer } = await import("./mcp.js");
+  await startMcpServer();
+} else {
+  seedDefaultModel(process.env.PI_CODING_AGENT_DIR as string);
+  // pi's own bin calls setupCli() (HTTP dispatcher, warnings) before main(); it isn't in the package exports.
+  const piEntry = import.meta.resolve("@earendil-works/pi-coding-agent");
+  const { setupCli } = await import(new URL("./cli/setup.js", piEntry).href);
+  setupCli();
+  process.title = "grokbot";
+  const { main } = await import("@earendil-works/pi-coding-agent");
+  const { default: grokExtension } = await import("./extension.js");
+  await main(args, { extensionFactories: [grokExtension] });
+}

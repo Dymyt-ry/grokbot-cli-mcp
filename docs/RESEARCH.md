@@ -22,3 +22,21 @@ a stdio MCP server that exposes Grok's own capabilities to Claude Code.
 - Fast tools run in-process, reusing the fork's code: chat (+vision), web search, X search, image, video, model list.
 - `grok_agent` runs the full Grok agent as a headless subprocess (`-p --format json -d <dir>`): per-call working
   directory, concurrency and crash isolation for free, and Grok's own MCP servers (e.g. mail) come along.
+
+## Pivot (same day): pi as the base
+
+New requirements: a really polished TUI, published on npm, working on Linux, macOS and Windows.
+grok-cli needs Bun (`bun:sqlite`, native OpenTUI), so it can't ship as a plain cross-platform npm package.
+
+[earendil-works/pi](https://github.com/earendil-works/pi) (117k ★, MIT): best-in-class terminal UI, plain Node ≥ 22.19,
+Windows support, built-in xAI provider with API key *and* SuperGrok / X Premium OAuth, MCP client, skills, extensions.
+
+Instead of forking pi's 11-package monorepo, grokbot depends on the published `@earendil-works/pi-coding-agent`
+(pinned) and calls its exported `main(args, { extensionFactories })` with a built-in grok extension:
+
+- extension: `web_search`, `x_search`, `generate_image`, `generate_video` tools + grokbot header (`setHeader`)
+- launcher: own config dir (`~/.grokbot/agent` via `PI_CODING_AGENT_DIR`), Grok as default model
+- `grokbot mcp`: the MCP server, ported from the grok-cli version
+
+Upgrading pi = bump one pinned version and run the tests. Known limit: pi's `--help` text still says "pi"
+(the name comes from pi's own package.json; changing it needs a source fork).
