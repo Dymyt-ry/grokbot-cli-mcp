@@ -1,8 +1,6 @@
 # grokbot
 
-<video src="docs/grokbot-demo.mp4" controls width="800"></video>
-
-*[Watch demo](docs/grokbot-demo.mp4)*
+![grokbot demo](docs/grokbot-demo.gif)
 
 **Grok in your terminal, and Grok inside Claude Code.**
 
