@@ -17,7 +17,7 @@ const tools = (await client.listTools()).tools.map((t) => t.name);
 const models = await client.callTool({ name: "grok_models", arguments: {} });
 await client.close();
 
-const expected = ["grok_agent", "grok_ask", "grok_generate_image", "grok_generate_video", "grok_models", "grok_search_web", "grok_search_x"];
+const expected = ["bot_list", "bot_read", "bot_send", "grok_agent", "grok_ask", "grok_generate_image", "grok_generate_video", "grok_models", "grok_search_web", "grok_search_x"];
 const missing = expected.filter((name) => !tools.includes(name));
 if (missing.length || models.isError || !JSON.stringify(models.content).includes("grok-")) {
   console.error("smoke failed", { tools, models });

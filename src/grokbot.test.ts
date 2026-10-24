@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { beforeAll, describe, expect, it } from "vitest";
+import { parseEntries, pickBot } from "./bots.js";
 import { registerSkillSearch, SKILL_INDEX_LIMIT, searchSkills } from "./skills.js";
 import { buildPrompt, canWrite, describeCursorTool, parseToolCalls, visibleText } from "./cursor.js";
 import grokbotExtension, { isBareLogin, LOGIN_CHOICES } from "./extension.js";
@@ -106,6 +107,9 @@ describe("MCP server", () => {
   it("exposes the Grok tools", async () => {
     const { tools } = await (await connect()).listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
+      "bot_list",
+      "bot_read",
+      "bot_send",
       "grok_agent",
       "grok_ask",
       "grok_generate_image",
@@ -352,5 +356,33 @@ describe("skills on demand", () => {
     handler?.({ systemPromptOptions: few });
     expect(few.skills).toHaveLength(1);
     expect(few.sections.skills).toBeUndefined();
+  });
+});
+
+describe("Grok Bot app client", () => {
+  const b64 = (o: object) => Buffer.from(JSON.stringify(o)).toString("base64");
+
+  it("keeps user and bot messages, in order, and drops internal entries", () => {
+    const entries = parseEntries([
+      { seq: "3", body: b64({ kind: "send-message", message: { type: "text", content: "pong" } }) },
+      { seq: "2", body: b64({ kind: "message", role: "user", content: "ping" }) },
+      { seq: "4", body: b64({ kind: "send-message", message: { type: "attachment", file_name: "a.xlsx" } }) },
+      { seq: "5", body: b64({ kind: "tool-call", name: "shell" }) },
+      { seq: "6", body: "not base64 json" },
+    ]);
+    expect(entries).toEqual([
+      { seq: 2, from: "you", text: "ping" },
+      { seq: 3, from: "bot", text: "pong" },
+      { seq: 4, from: "bot", text: "[file: a.xlsx]" },
+    ]);
+  });
+
+  it("picks a bot by id, name or prefix, defaulting to the main bot", () => {
+    const bots = [{ agentId: "a1", name: "Grok Bot" }, { agentId: "a2", name: "giggle work" }];
+    expect(pickBot(bots).agentId).toBe("a1");
+    expect(pickBot(bots, "GIGGLE").agentId).toBe("a2");
+    expect(pickBot(bots, "a2").name).toBe("giggle work");
+    expect(() => pickBot(bots, "nope")).toThrow(/Bots: Grok Bot, giggle work/);
+    expect(() => pickBot([], undefined)).toThrow(/No Grok Bot bots/);
   });
 });

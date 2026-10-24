@@ -110,6 +110,22 @@ grokbot mcp add gmail -- npx -y @gongrzhe/server-gmail-autoauth-mcp
 
 Check with `grokbot mcp list`, then from Claude: _"ask the grok agent to summarize today's unread email"_.
 
+## Your bots in the Grok Bot app
+
+grokbot also talks to the bots in xAI's official **Grok Bot** desktop app (signed in with the same Cursor account):
+
+```bash
+grokbot bot list                                  # your bots
+grokbot bot send "summarize my unread email"      # message your main bot, print its replies
+grokbot bot send --bot "giggle work" --no-wait "..."
+grokbot bot read --bot "Grok Bot" 20              # last 20 messages
+```
+
+Messages appear in the app as sent by you, and Claude Code gets the same through the MCP tools `bot_list`,
+`bot_read` and `bot_send`. This is an **unofficial** client of the app's private API (the requests the app itself makes,
+with your own login): it can break when the app updates, and using it is at your own risk under xAI's and Cursor's terms.
+The token comes from `~/.config/cursor/auth.json` (`cursor-agent login`) or `CURSOR_ACCESS_TOKEN`.
+
 ## Skills
 
 grokbot uses pi's [skills](https://agentskills.io) (`~/.agents/skills`, `~/.grokbot/agent/skills`, project

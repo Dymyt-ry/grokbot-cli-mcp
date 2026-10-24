@@ -16,6 +16,12 @@ if (args[0] === "login" || args[0] === "logout") {
   process.exit();
 }
 
+if (args[0] === "bot") {
+  const { botCommand } = await import("./bot-cli.js");
+  process.exitCode = await botCommand(args.slice(1));
+  process.exit();
+}
+
 // `grokbot mcp` (or `mcp serve`) runs our server; `grokbot mcp list|login|logout` stays pi's MCP client command.
 if (args[0] === "mcp" && (args.length === 1 || args[1] === "serve")) {
   // stdout carries the MCP protocol; keep stray logs off it.

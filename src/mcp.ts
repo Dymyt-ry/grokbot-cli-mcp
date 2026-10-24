@@ -8,6 +8,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { generateText } from "ai";
 import { z } from "zod";
+import { listBots, pickBot, readBot, sendToBot } from "./bots.js";
 import { DEFAULT_MODEL, VERSION } from "./setup.js";
 import {
   createImage,
@@ -258,6 +259,54 @@ export function createGrokMcpServer(): McpServer {
           .map((m) => `${m.id}: ${m.name} | ${m.contextWindow} ctx | $${m.cost.input}/$${m.cost.output} per 1M tokens`)
           .join("\n"),
       ),
+  );
+
+  // --- The user's bots in the official Grok Bot app (unofficial client, Cursor login) ---
+  const botArg = z.string().optional().describe("Bot name (or prefix) as shown in the Grok Bot app; default: the main bot");
+
+  server.registerTool(
+    "bot_list",
+    { title: "List Grok Bot bots", annotations: { readOnlyHint: true, openWorldHint: true }, description: "List the user's bots in the Grok Bot app.", inputSchema: {} },
+    safe(async () => reply((await listBots()).map((b) => `${b.name}${b.description ? `: ${b.description}` : ""}`).join("\n"))),
+  );
+
+  server.registerTool(
+    "bot_read",
+    {
+      title: "Read a Grok Bot chat",
+      annotations: { readOnlyHint: true, openWorldHint: true },
+      description: "Read the latest messages of one of the user's Grok Bot bots.",
+      inputSchema: { bot: botArg, limit: z.number().int().min(1).max(100).optional().describe("Default 10") },
+    },
+    safe(async ({ bot, limit }: { bot?: string; limit?: number }) => {
+      const target = pickBot(await listBots(), bot);
+      const entries = await readBot(target, limit ?? 10);
+      return reply(entries.map((e) => `${e.from === "you" ? "user" : target.name}: ${e.text}`).join("\n\n") || "(no messages)");
+    }),
+  );
+
+  server.registerTool(
+    "bot_send",
+    {
+      title: "Message a Grok Bot bot",
+      annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+      description:
+        "Send a message to one of the user's Grok Bot bots (it appears in their Grok Bot app as sent by them) and return the bot's replies. " +
+        "Bots have their own computer, email inbox and connected apps, so they can act on the user's behalf. Waits up to timeout_s for the turn to finish.",
+      inputSchema: {
+        bot: botArg,
+        message: z.string().min(1),
+        timeout_s: z.number().int().min(0).max(1800).optional().describe("0 = send without waiting; default 600"),
+      },
+    },
+    safe(async ({ bot, message, timeout_s }: { bot?: string; message: string; timeout_s?: number }, signal) => {
+      const target = pickBot(await listBots(), bot);
+      const wait = timeout_s !== 0;
+      const { replies, done } = await sendToBot(target, message, { wait, timeoutMs: (timeout_s ?? 600) * 1000, signal });
+      if (!wait) return reply(`Sent to ${target.name}.`);
+      const text = replies.map((r) => r.text).join("\n\n") || "(no reply yet)";
+      return reply(done ? text : `${text}\n\n[${target.name} is still working; read later with bot_read]`);
+    }),
   );
 
   return server;
