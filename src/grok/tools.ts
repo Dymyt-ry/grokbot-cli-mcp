@@ -1,4 +1,4 @@
-import { generateText, type ToolSet, tool } from "ai";
+import { type ToolSet, tool } from "ai";
 import { z } from "zod";
 import { executePostToolFailureHooks, executePostToolHooks, executePreToolHooks } from "../hooks/index";
 import { isLspToolEnabled, queryLsp } from "../lsp/runtime";
@@ -34,8 +34,7 @@ import {
   VIDEO_ASPECT_RATIOS,
   VIDEO_RESOLUTIONS,
 } from "./media";
-
-const RESPONSES_SEARCH_MODEL = "grok-4.20-non-reasoning";
+import { grokSearch, type SearchKind } from "./search";
 
 interface CreateToolsOptions {
   runTask?: (request: TaskRequest, abortSignal?: AbortSignal) => Promise<ToolResult>;
@@ -56,33 +55,8 @@ export function createTools(
 ) {
   const cwd = () => bash.getCwd();
 
-  const runResponsesSearch = async (
-    query: string,
-    toolName: "web_search" | "x_search",
-    abortSignal?: AbortSignal,
-  ): Promise<{ success: boolean; output: string }> => {
-    try {
-      const { text } = await generateText({
-        model: provider.responses(RESPONSES_SEARCH_MODEL),
-        maxOutputTokens: 4096,
-        prompt: query,
-        abortSignal,
-        tools: {
-          ...(toolName === "web_search" ? { web_search: provider.tools.webSearch() } : {}),
-          ...(toolName === "x_search" ? { x_search: provider.tools.xSearch() } : {}),
-        },
-      });
-
-      return {
-        success: true,
-        output: text || "No search results found.",
-      };
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      const label = toolName === "web_search" ? "Web search" : "X search";
-      return { success: false, output: `${label} failed: ${msg}` };
-    }
-  };
+  const runResponsesSearch = (query: string, kind: SearchKind, abortSignal?: AbortSignal) =>
+    grokSearch(provider, kind, query, {}, abortSignal);
 
   const base = {
     bash: tool({

@@ -494,6 +494,16 @@ program
   });
 
 program
+  .command("mcp")
+  .description("Run as an MCP server over stdio (for Claude Code: claude mcp add grokbot -- grokbot mcp)")
+  .action(async () => {
+    // stdout carries the MCP protocol; keep stray logs off it.
+    console.log = console.error;
+    const { startMcpServer } = await import("./mcp/server");
+    await startMcpServer();
+  });
+
+program
   .command("update")
   .description("Update Grok to the latest release")
   .action(async () => {
