@@ -1,6 +1,6 @@
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -290,11 +290,10 @@ describe("cursor provider", () => {
     expect(parseToolCalls("no tools here").calls).toEqual([]);
   });
 
-  it("describes Cursor's own tool calls and knows which are read-only", () => {
-    expect(describeCursorTool({ readToolCall: { args: { path: "/w/src/a.py" } } }, "/w")).toEqual({ name: "read", readOnly: true, line: "read src/a.py" });
-    expect(describeCursorTool({ readToolCall: { args: { path: "/etc/hosts" } } }, "/w").line).toBe("read /etc/hosts");
-    expect(describeCursorTool({ shellToolCall: { args: { command: "ls" } } })).toEqual({ name: "shell", readOnly: false, line: "shell ls" });
-    expect(describeCursorTool({ editToolCall: { args: { path: "a.py" } } }).readOnly).toBe(false);
+  it("describes Cursor's own tool calls relative to the workspace", () => {
+    const cwd = resolve("/w");
+    expect(describeCursorTool({ readToolCall: { args: { path: join(cwd, "src", "a.py") } } }, cwd)).toBe(`read ${join("src", "a.py")}`);
+    expect(describeCursorTool({ shellToolCall: { args: { command: "ls" } } }, cwd)).toBe("shell ls");
     expect(canWrite([{ name: "read" }, { name: "edit" }])).toBe(true);
     expect(canWrite([{ name: "read" }, { name: "grep" }])).toBe(false);
   });

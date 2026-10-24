@@ -89,7 +89,6 @@ function text(content: Message["content"]): string {
 /** Flattens pi's transcript (system prompt, tools, messages, tool results) into one prompt for a stateless CLI call. */
 export function buildPrompt(context: TranscriptContext): string {
   const tools = getCurrentTools(context.messages);
-  const writable = canWrite(tools);
   const parts = [
     "<protocol>",
     "You are the model behind grokbot, a coding agent. You have two kinds of tools:",
@@ -97,9 +96,7 @@ export function buildPrompt(context: TranscriptContext): string {
     "2. grokbot's tools listed in <tools>. Call one by ending your reply with one or more blocks, each exactly:",
     `   ${OPEN}{"name": "<tool name>", "arguments": {...}}${CLOSE}`,
     "   Write nothing after the last block. The results come back in the next turn.",
-    writable
-      ? "Make the changes the user asks for instead of only describing them."
-      : "This session is READ-ONLY: do not modify files or run commands that change anything.",
+    "Make the changes the user asks for instead of only describing them.",
     "</protocol>",
     "<instructions>",
     getCurrentSystemPrompt(context.messages),
@@ -167,20 +164,18 @@ export interface CursorEvent {
   usage?: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheWriteTokens?: number };
 }
 
-/** pi drops edit/write/bash from the tool list in read-only runs (grok_agent read_only); Cursor then may only read too. */
+/** pi drops edit/write/bash from the tool list in read-only runs (grok_agent read_only). */
 export function canWrite(tools: { name: string }[]): boolean {
   return tools.some((t) => ["edit", "write", "bash"].includes(t.name));
 }
 
-const CURSOR_READ_ONLY = new Set(["readToolCall", "globToolCall", "grepToolCall", "lsToolCall", "semanticSearchToolCall"]);
-
 /** One line for the transcript about a tool Cursor ran itself, e.g. "edit calc.py". */
-export function describeCursorTool(call: CursorEvent["tool_call"], cwd = process.cwd()): { name: string; readOnly: boolean; line: string } {
+export function describeCursorTool(call: CursorEvent["tool_call"], cwd = process.cwd()): string {
   const [key, value] = Object.entries(call ?? {})[0] ?? ["unknownToolCall", undefined];
   const name = key.replace(/ToolCall$/, "");
   const a = value?.args ?? {};
   const target = a.command ?? (a.path && relative(cwd, a.path).startsWith("..") ? a.path : a.path && relative(cwd, a.path)) ?? a.pattern ?? a.globPattern ?? "";
-  return { name, readOnly: CURSOR_READ_ONLY.has(key), line: `${name} ${target}`.trim() };
+  return `${name} ${target}`.trim();
 }
 
 export function streamCursor(model: Model<Api>, context: TranscriptContext, options?: SimpleStreamOptions): AssistantMessageEventStream {
@@ -237,19 +232,21 @@ export function streamCursor(model: Model<Api>, context: TranscriptContext, opti
 
   void (async () => {
     if (!(CURSOR_MODELS as readonly string[]).includes(model.id)) return fail("error", `Unknown Cursor model: ${model.id}`);
-    const writable = canWrite(getCurrentTools(context.messages));
+    // Cursor's own tools can't be switched off before it starts, so a read-only run can't be enforced: refuse it.
+    if (!canWrite(getCurrentTools(context.messages))) {
+      return fail("error", "Read-only runs can't use Cursor (its own tools can write). Use an xAI model or sign in to xAI.");
+    }
     let payload: unknown = { model: model.id, prompt: buildPrompt(context) };
     payload = (await options?.onPayload?.(payload, model)) ?? payload;
     const { prompt } = payload as { prompt: string };
+    // --trust: cursor-agent -p refuses untrusted folders; starting grokbot here is the user's choice to run an agent here.
     const args = ["-p", "--output-format", "stream-json", "--stream-partial-output", "--trust", "--model", model.id];
-    if (!writable) args.push("--mode", "ask");
     const child = runCli(args, { cwd: process.cwd() });
     stream.push({ type: "start", partial: output });
     child.stdin.end(prompt);
 
     let stderr = "";
     let result: CursorEvent | undefined;
-    let blocked: string | undefined;
     const onAbort = () => child.kill();
     options?.signal?.addEventListener("abort", onAbort, { once: true });
     child.stderr.on("data", (d: Buffer) => (stderr += d.toString()));
@@ -265,7 +262,6 @@ export function streamCursor(model: Model<Api>, context: TranscriptContext, opti
         } catch {
           continue;
         }
-        if (blocked) continue;
         void options?.onProviderStreamEvent?.(event, model);
         if (event.type === "thinking" && event.subtype === "delta") append("thinking", event.text ?? "");
         else if (event.type === "thinking" && event.subtype === "completed") close();
@@ -280,15 +276,8 @@ export function streamCursor(model: Model<Api>, context: TranscriptContext, opti
           segment += delta;
           addText(delta);
         } else if (event.type === "tool_call" && event.subtype === "started") {
-          const tool = describeCursorTool(event.tool_call);
-          if (!writable && !tool.readOnly) {
-            // ponytail: killed on "started"; a fast write could land first. Ask mode is the main guard.
-            blocked = tool.name;
-            child.kill();
-            continue;
-          }
           // Shown in the transcript so the next (stateless) turn knows what Cursor already did.
-          addText(`${raw && !raw.endsWith("\n") ? "\n" : ""}\`⚙ ${tool.line.slice(0, 200)}\`\n`);
+          addText(`${raw && !raw.endsWith("\n") ? "\n" : ""}\`⚙ ${describeCursorTool(event.tool_call).slice(0, 200)}\`\n`);
         } else if (event.type === "result") result = event;
       }
     });
@@ -302,7 +291,6 @@ export function streamCursor(model: Model<Api>, context: TranscriptContext, opti
     });
     options?.signal?.removeEventListener("abort", onAbort);
     if (options?.signal?.aborted) return fail("aborted", "Request was aborted");
-    if (blocked) return fail("error", `Read-only session: stopped Cursor's ${blocked} tool.`);
     if (code !== 0 || !result || result.is_error) {
       return fail("error", stripAnsi(result?.result || stderr).trim() || `cursor-agent exited with code ${code}`);
     }

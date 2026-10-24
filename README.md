@@ -44,8 +44,9 @@ xAI browser sign-in uses your SuperGrok / X Premium subscription; the CLI and `g
 automatically when it is your only login (or `/model` → "Grok 4.7 … (Cursor)"). Grok then reads, edits and runs commands
 with Cursor's own tools in your workspace, shown as `⚙ edit file.py` lines, and calls grokbot's tools through a
 prompt protocol. `web_search`, `x_search`, image/video generation and the MCP server still need xAI credentials. Each
-turn is one `cursor-agent` run, so it is slower than the xAI API and uses your Cursor plan under Cursor's terms. In a
-`grok_agent` `read_only` run, Cursor is limited to ask mode and stopped if it reaches for a write tool.
+turn is one `cursor-agent` run, so it is slower than the xAI API and uses your Cursor plan under Cursor's terms. grokbot
+passes `--trust` to `cursor-agent` for the folder you start it in. Cursor's tools can't be limited, so `grok_agent`
+`read_only` runs refuse Cursor models and need xAI.
 
 Grok (`grok-4.7`) is the default model. Switch anytime with `/model` (any pi provider works).
 
