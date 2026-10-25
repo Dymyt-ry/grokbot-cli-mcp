@@ -1,4 +1,4 @@
-# grokbot
+# grokbot   
 
 [![npm](https://img.shields.io/npm/v/grokbot-cli-mcp)](https://www.npmjs.com/package/grokbot-cli-mcp) [![CI](https://github.com/cufelix/grokbot-cli-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/cufelix/grokbot-cli-mcp/actions)
 
