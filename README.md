@@ -1,6 +1,6 @@
 # grokbot
 
-![grokbot demo](docs/grokbot-demo.gif)
+![grokbot in 11 seconds](docs/film.gif)
 
 **Grok in your terminal, and Grok inside Claude Code.**
 
@@ -53,6 +53,8 @@ passes `--trust` to `cursor-agent` for the folder you start it in. Cursor's tool
 Grok (`grok-4.7`) is the default model. Switch anytime with `/model` (any pi provider works).
 
 ## The CLI
+
+![grokbot in the terminal](docs/grokbot-demo.gif)
 
 ```bash
 grokbot                                   # interactive TUI

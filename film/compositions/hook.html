@@ -1,0 +1,30 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 56px; color: var(--ink); }
+    #hook-stage { display: flex; flex-direction: column; align-items: center; gap: 56px; }
+    #hook-logo { font-family: var(--font-mono); font-size: 92px; line-height: 1; white-space: pre; color: var(--ink); }
+    #hook-logo span { display: inline-block; }
+    #hook-line { font-family: var(--font-display); font-size: 84px; letter-spacing: -0.02em; }
+    #hook-line span { display: inline-block; margin: 0 14px; }
+    #hook-line .hi { color: var(--accent); }
+  </style>
+  <div id="root" data-composition-id="hook" data-width="1920" data-height="1080">
+    <div id="hook-stage">
+      <div id="hook-logo"><div id="hook-l1"></div><div id="hook-l2"></div></div>
+      <div id="hook-line"><span>Grok</span><span>in</span><span>your</span><span class="hi">terminal.</span></div>
+    </div>
+  </div>
+  <script>
+    // Real logo from src/extension.ts, split per glyph so it can type on.
+    const rows = ["▄▀▀ █▀▄ ▄▀▄ █▄▀ ██▄ ▄▀▄ ▀█▀", "▀▄█ █▀▄ ▀▄▀ █ █ █▄█ ▀▄▀  █ "];
+    ["#hook-l1", "#hook-l2"].forEach((sel, r) => {
+      document.querySelector(sel).innerHTML = [...rows[r]].map((c) => `<span>${c === " " ? "&nbsp;" : c}</span>`).join("");
+    });
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#hook-logo span", { opacity: 0.3, filter: "blur(4px)", y: 0 }, { opacity: 1, filter: "blur(0px)", y: 0, duration: 0.2, ease: "expo.out", stagger: { each: 0.012, from: "start" } }, 0);
+    tl.fromTo("#hook-line span", { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13, ease: "power4.out", stagger: 0.07 }, 0.6);
+    // whip out to the left
+    tl.to("#hook-stage", { x: -1400, filter: "blur(18px)", opacity: 0, duration: 0.26, ease: "power3.in" }, 1.8);
+    window.__timelines["hook"] = tl;
+  </script>
+</template>

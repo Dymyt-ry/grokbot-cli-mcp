@@ -1,0 +1,50 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; color: var(--ink); }
+    #cli-cam { position: absolute; inset: 0; }
+    #cli-take { position: absolute; left: 150px; top: 110px; font-family: var(--font-display); font-size: 76px; letter-spacing: -0.02em; }
+    #cli-take span { display: inline-block; margin-right: 22px; }
+    #cli-take .hi { color: var(--accent); }
+    #cli-term { position: absolute; left: 150px; top: 260px; width: 1620px; height: 700px; border-radius: 22px; background: #11111b; border: 2px solid #2a2a3a; box-shadow: 0 40px 120px rgba(0,0,0,.6); font-family: var(--font-mono); font-size: 38px; line-height: 1.6; padding: 84px 56px 0; overflow: hidden; }
+    #cli-bar { position: absolute; left: 0; top: 0; right: 0; height: 52px; background: #181825; display: flex; gap: 14px; align-items: center; padding-left: 24px; }
+    #cli-bar i { width: 16px; height: 16px; border-radius: 50%; display: block; }
+    .cli-ln { white-space: pre; }
+    .p { color: var(--violet); } .d { color: var(--dim); } .g { color: var(--accent); } .r { color: var(--red); }
+    #cli-box { display: inline-block; border: 2px solid #45475a; border-radius: 10px; padding: 2px 22px; margin: 6px 0; }
+  </style>
+  <div id="root" data-composition-id="cli" data-width="1920" data-height="1080">
+    <div id="cli-cam" data-layout-allow-overflow>
+      <div id="cli-take"><span>It</span><span>edits.</span><span class="hi">You</span><span class="hi">ship.</span></div>
+      <div id="cli-term">
+        <div id="cli-bar"><i style="background:#f38ba8"></i><i style="background:#f9e2af"></i><i style="background:#a6e3a1"></i></div>
+        <div id="cli-a" class="cli-ln"><span class="p">❯</span> grokbot</div>
+        <div id="cli-b" class="cli-ln"><span id="cli-box"><span class="d">&gt;</span> <span id="cli-type"></span></span></div>
+        <div id="cli-c" class="cli-ln"><span class="d">⚙ edit calc.py</span></div>
+        <div id="cli-d" class="cli-ln">  def add(a, b):</div>
+        <div id="cli-e" class="cli-ln r">-     return a - b</div>
+        <div id="cli-f" class="cli-ln g">+     return a + b</div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const msg = "fix the bug in calc.py";
+    const typed = document.querySelector("#cli-type");
+    const tl = gsap.timeline({ paused: true });
+    // whip in from the right, matching the hook's exit
+    tl.fromTo("#cli-cam", { x: 1300, filter: "blur(18px)" }, { x: 0, filter: "blur(0px)", duration: 0.4, ease: "expo.out" }, 0);
+    tl.fromTo("#cli-take span", { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13, ease: "power4.out", stagger: 0.08 }, 0.25);
+    tl.fromTo("#cli-a", { opacity: 0 }, { opacity: 1, duration: 0.01 }, 0.2);
+    tl.fromTo("#cli-b", { opacity: 0 }, { opacity: 1, duration: 0.01 }, 0.4);
+    const typer = { n: 0 };
+    tl.fromTo(typer, { n: 0 }, { n: msg.length, duration: 0.6, ease: "none", onUpdate: () => (typed.textContent = msg.slice(0, Math.round(typer.n))) }, 0.45);
+    tl.fromTo("#cli-c", { opacity: 0 }, { opacity: 1, duration: 0.01 }, 1.2);
+    tl.fromTo("#cli-d", { opacity: 0 }, { opacity: 1, duration: 0.01 }, 1.35);
+    tl.fromTo("#cli-e", { opacity: 0 }, { opacity: 1, duration: 0.01 }, 1.45);
+    tl.fromTo("#cli-f", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.25, ease: "expo.out" }, 1.6);
+    // punch-in on the fix
+    tl.to("#cli-cam", { scale: 1.45, x: 330, y: -330, duration: 0.5, ease: "power2.inOut" }, 1.85);
+    // blur swap out
+    tl.to("#cli-cam", { opacity: 0, filter: "blur(8px)", duration: 0.18, ease: "power3.in" }, 2.8);
+    window.__timelines["cli"] = tl;
+  </script>
+</template>

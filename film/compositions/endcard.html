@@ -1,0 +1,21 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--ink); }
+    #end-stage { display: flex; flex-direction: column; align-items: center; gap: 48px; }
+    #end-logo { font-family: var(--font-mono); font-size: 110px; line-height: 1; white-space: pre; }
+    #end-cta { font-family: var(--font-mono); font-size: 44px; padding: 18px 40px; border: 2px solid #3a3a46; border-radius: 16px; }
+    #end-cta .s { color: #f9e2af; }
+  </style>
+  <div id="root" data-composition-id="endcard" data-width="1920" data-height="1080">
+    <div id="end-stage">
+      <div id="end-logo">▄▀▀ █▀▄ ▄▀▄ █▄▀ ██▄ ▄▀▄ ▀█▀<br />▀▄█ █▀▄ ▀▄▀ █ █ █▄█ ▀▄▀  █ </div>
+      <div id="end-cta"><span class="s">★</span> github.com/cufelix/grokbot-cli-mcp</div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#end-logo", { opacity: 0, scale: 1.25, filter: "blur(14px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.45, ease: "expo.out" }, 0);
+    tl.fromTo("#end-cta", { opacity: 0, clipPath: "inset(0 100% 0 0)" }, { opacity: 1, clipPath: "inset(0 0% 0 0)", duration: 0.35, ease: "power3.out" }, 0.25);
+    window.__timelines["endcard"] = tl;
+  </script>
+</template>

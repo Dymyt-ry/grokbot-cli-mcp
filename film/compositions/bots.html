@@ -1,0 +1,37 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; color: var(--ink); }
+    #bots-stage { position: absolute; inset: 0; }
+    #bots-take { position: absolute; left: 150px; top: 110px; font-family: var(--font-display); font-size: 76px; letter-spacing: -0.02em; }
+    #bots-take span { display: inline-block; margin-right: 22px; }
+    #bots-take .hi { color: var(--violet); }
+    #bots-term { position: absolute; left: 150px; top: 270px; width: 1620px; font-family: var(--font-mono); font-size: 40px; line-height: 1.65; }
+    .bots-ln { white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+    .p { color: var(--violet); } .d { color: var(--dim); } .g { color: var(--accent); }
+    #bots-reply { display: inline-block; background: #1e1e2e; border: 2px solid var(--violet); border-radius: 18px; padding: 6px 28px; margin-top: 10px; }
+  </style>
+  <div id="root" data-composition-id="bots" data-width="1920" data-height="1080">
+    <div id="bots-stage">
+      <div id="bots-take"><span>Your</span><span class="hi">Grok</span><span class="hi">Bot</span><span>bots.</span><span>Here.</span></div>
+      <div id="bots-term">
+        <div class="bots-ln"><span class="p">❯</span> grokbot bot list</div>
+        <div class="bots-ln bots-item">Grok Bot  <span class="d">(A teammate with its own computer…)</span></div>
+        <div class="bots-ln bots-item">New Bot</div>
+        <div class="bots-ln bots-item">giggle work</div>
+        <div class="bots-ln" id="bots-send"><span class="p">❯</span> grokbot bot send "ping"</div>
+        <div class="bots-ln" id="bots-r"><span id="bots-reply"><span class="g">Grok Bot ›</span> pong</span></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#bots-stage", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13, ease: "power4.out" }, 0);
+    tl.fromTo("#bots-take span", { color: "#3a3a46" }, { color: (i, el) => (el.classList.contains("hi") ? "#cba6f7" : "#f4f4f6"), duration: 0.1, stagger: 0.08 }, 0.05);
+    tl.fromTo(".bots-item", { opacity: 0, x: -24 }, { opacity: 1, x: 0, duration: 0.2, ease: "expo.out", stagger: 0.06 }, 0.2);
+    tl.fromTo("#bots-send", { opacity: 0 }, { opacity: 1, duration: 0.01 }, 0.55);
+    tl.fromTo("#bots-reply", { opacity: 0, scale: 0.6, transformOrigin: "0% 50%" }, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(1.4)" }, 0.7);
+    // colour flood into the MCP scene
+    tl.to("#bots-stage", { opacity: 0, y: -40, duration: 0.18, ease: "power3.in" }, 1.5);
+    window.__timelines["bots"] = tl;
+  </script>
+</template>

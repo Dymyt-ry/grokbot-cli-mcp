@@ -1,0 +1,43 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; color: var(--ink); }
+    #mcp-flood { position: absolute; inset: 0; background: #d97757; }
+    #mcp-stage { position: absolute; inset: 0; }
+    #mcp-take { position: absolute; left: 150px; top: 110px; font-family: var(--font-display); font-size: 76px; letter-spacing: -0.02em; color: #1a1210; }
+    #mcp-take span { display: inline-block; margin-right: 22px; }
+    #mcp-take .hi { color: #fff; }
+    #mcp-term { position: absolute; left: 150px; top: 260px; width: 1620px; font-family: var(--font-mono); font-size: 38px; line-height: 1.6; color: #1a1210; }
+    .mcp-ln { white-space: pre; }
+    #mcp-ok { font-weight: 700; color: #fff; }
+    #mcp-tools { position: absolute; left: 150px; top: 520px; width: 1620px; display: flex; flex-wrap: wrap; gap: 22px; }
+    .mcp-chip { font-family: var(--font-mono); font-size: 36px; padding: 14px 28px; border-radius: 999px; background: #1a1210; color: #f4f4f6; }
+    .mcp-chip.b { color: #cba6f7; }
+  </style>
+  <div id="root" data-composition-id="mcp" data-width="1920" data-height="1080">
+    <div id="mcp-flood"></div>
+    <div id="mcp-stage">
+      <div id="mcp-take"><span>Claude</span><span>Code,</span><span>meet</span><span class="hi">Grok.</span></div>
+      <div id="mcp-term">
+        <div class="mcp-ln">❯ claude mcp list | grep grokbot</div>
+        <div class="mcp-ln" id="mcp-res">grokbot: grokbot mcp - <span id="mcp-ok">✔ Connected</span></div>
+      </div>
+      <div id="mcp-tools">
+        <div class="mcp-chip">grok_ask</div><div class="mcp-chip">grok_agent</div><div class="mcp-chip">grok_search_web</div><div class="mcp-chip">grok_search_x</div>
+        <div class="mcp-chip">grok_generate_image</div><div class="mcp-chip">grok_generate_video</div><div class="mcp-chip">grok_models</div>
+        <div class="mcp-chip b">bot_list</div><div class="mcp-chip b">bot_read</div><div class="mcp-chip b">bot_send</div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    // colour flood: the ground turns Claude orange
+    tl.fromTo("#mcp-flood", { clipPath: "circle(0% at 50% 100%)" }, { clipPath: "circle(150% at 50% 100%)", duration: 0.4, ease: "power2.inOut" }, 0);
+    tl.fromTo("#mcp-take span", { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13, ease: "power4.out", stagger: 0.07 }, 0.25);
+    tl.fromTo(".mcp-ln", { opacity: 0 }, { opacity: 1, duration: 0.01, stagger: 0.2 }, 0.35);
+    tl.fromTo(".mcp-chip", { opacity: 0, y: 40, scale: 0.8 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: "back.out(1.4)", stagger: 0.05 }, 0.7);
+    // zoom through the connected badge
+    tl.to("#mcp-stage", { scale: 3, opacity: 0, filter: "blur(12px)", transformOrigin: "60% 35%", duration: 0.3, ease: "power3.in" }, 1.6);
+    tl.to("#mcp-flood", { opacity: 0, duration: 0.3, ease: "power2.in" }, 1.6);
+    window.__timelines["mcp"] = tl;
+  </script>
+</template>
