@@ -1,6 +1,6 @@
 # grokbot
 
-![grokbot in 11 seconds](docs/film.gif)
+![grokbot in 11 seconds](https://raw.githubusercontent.com/cufelix/grokbot-cli-mcp/main/docs/film.gif)
 
 **Grok in your terminal, and Grok inside Claude Code.**
 
@@ -54,7 +54,7 @@ Grok (`grok-4.7`) is the default model. Switch anytime with `/model` (any pi pro
 
 ## The CLI
 
-![grokbot in the terminal](docs/grokbot-demo.gif)
+![grokbot in the terminal](https://raw.githubusercontent.com/cufelix/grokbot-cli-mcp/main/docs/grokbot-demo.gif)
 
 ```bash
 grokbot                                   # interactive TUI
