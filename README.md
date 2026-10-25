@@ -1,5 +1,7 @@
 # grokbot
 
+[![npm](https://img.shields.io/npm/v/grokbot-cli-mcp)](https://www.npmjs.com/package/grokbot-cli-mcp) [![CI](https://github.com/cufelix/grokbot-cli-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/cufelix/grokbot-cli-mcp/actions)
+
 ![grokbot in 11 seconds](https://raw.githubusercontent.com/cufelix/grokbot-cli-mcp/main/docs/film.gif)
 
 **Grok in your terminal, and Grok inside Claude Code.**
@@ -25,9 +27,11 @@ pi + grok ext ──┤
 ## Install
 
 ```bash
-npm install -g grokbot-cli-mcp
+npm install -g grokbot-cli-mcp   # needs Node.js >= 22.19
 grokbot
 ```
+
+Update with `npm install -g grokbot-cli-mcp@latest`, remove with `npm uninstall -g grokbot-cli-mcp`.
 
 Sign in once:
 
