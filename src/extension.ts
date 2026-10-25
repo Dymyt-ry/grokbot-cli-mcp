@@ -24,7 +24,7 @@ import {
 import { CURSOR_PROVIDER, cursorProvider } from "./cursor.js";
 import { VERSION } from "./setup.js";
 import { registerSkillSearch } from "./skills.js";
-import { registerBotProvider } from "./bots.js";
+import { registerBotProvider } from "./bot-provider.js";
 
 const oneOf = <T extends string>(values: readonly T[], description?: string) =>
   Type.Union(

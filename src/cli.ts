@@ -5,8 +5,10 @@ const args = process.argv.slice(2);
 configureEnv();
 
 if (args.length === 1 && (args[0] === "--version" || args[0] === "-v")) {
-  const { VERSION: PI_VERSION } = await import("@earendil-works/pi-coding-agent");
-  console.log(`grokbot ${VERSION} (pi ${PI_VERSION})`);
+  // Read from package.json: importing pi just for its VERSION takes about a second.
+  const { readFileSync } = await import("node:fs");
+  const piPkg = new URL("../package.json", import.meta.resolve("@earendil-works/pi-coding-agent"));
+  console.log(`grokbot ${VERSION} (pi ${JSON.parse(readFileSync(piPkg, "utf8")).version})`);
   process.exit(0);
 }
 
