@@ -21,9 +21,21 @@ export interface BotEntry {
   text: string;
 }
 
-/** Cursor's login token. ponytail: only the Linux/XDG file cursor-agent writes; CURSOR_ACCESS_TOKEN covers the rest. */
+/** Cursor's login token: CURSOR_ACCESS_TOKEN, the macOS Keychain item cursor-agent writes, or its Linux/XDG file. */
 function token(): string {
   if (process.env.CURSOR_ACCESS_TOKEN) return process.env.CURSOR_ACCESS_TOKEN;
+  if (process.platform === "darwin" && process.env.GROKBOT_KEYCHAIN !== "0") {
+    try {
+      const t = execFileSync("security", ["find-generic-password", "-s", "cursor-access-token", "-w"], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+        timeout: 10_000,
+      }).trim();
+      if (t) return t;
+    } catch {
+      // not signed in with cursor-agent on this Mac: fall through
+    }
+  }
   const file = join(process.env.XDG_CONFIG_HOME || join(homedir(), ".config"), "cursor", "auth.json");
   try {
     const t = JSON.parse(readFileSync(file, "utf8")).accessToken;

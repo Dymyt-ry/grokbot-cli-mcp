@@ -133,7 +133,7 @@ Inside `grokbot` itself, each bot is also a model: pick one with `/model` (or `g
 with it right in the TUI; switch bots the same way. Messages appear in the app as sent by you, and Claude Code gets the same through the MCP tools `bot_list`,
 `bot_read` and `bot_send`. This is an **unofficial** client of the app's private API (the requests the app itself makes,
 with your own login): it can break when the app updates, and using it is at your own risk under xAI's and Cursor's terms.
-The token comes from `~/.config/cursor/auth.json` (`cursor-agent login`) or `CURSOR_ACCESS_TOKEN`.
+The token comes from `cursor-agent login` (the macOS Keychain, or `~/.config/cursor/auth.json` on Linux) or `CURSOR_ACCESS_TOKEN` (`GROKBOT_KEYCHAIN=0` skips the Keychain).
 
 ## Skills
 

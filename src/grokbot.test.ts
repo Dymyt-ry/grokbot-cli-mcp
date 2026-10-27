@@ -24,6 +24,7 @@ beforeAll(() => {
   process.env.PI_OFFLINE = "1";
   // No Cursor login either: the bots provider must stay off without touching the network.
   delete process.env.CURSOR_ACCESS_TOKEN;
+  process.env.GROKBOT_KEYCHAIN = "0";
   process.env.XDG_CONFIG_HOME = tmp();
 });
 
